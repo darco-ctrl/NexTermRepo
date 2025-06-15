@@ -8,104 +8,96 @@
         mc:Ignorable="d"
         
         WindowStyle="None"
+        ResizeMode="NoResize"
         AllowsTransparency="True"
         Background="Transparent"
         
-        Title="NexTerm" Height="450" Width="800">
+        MouseDown="Window_MouseDown"
+        
+        Title="NexTerm" Height="450" Width="900">
     <Grid>
         <Border
             Margin="0"
             Background="Black"
-            Opacity="0.7"
+            Opacity="0.9"
         />
         <Border
             Margin="0"
             Background="Transparent"
-            BorderThickness="2"
+            BorderThickness="1"
             BorderBrush="White"
-            CornerRadius="7"
+            CornerRadius="3"
         />
 
         <!--TitleBar and Tabs-->
         <DockPanel VerticalAlignment="Top" Height="35">
-            <DockPanel Margin="745,10,10,10">
+            <DockPanel Margin="730,5,10,5" HorizontalAlignment="Right">
                 <Button
                     x:Name="Minimize"
-                    Margin="2.5"
+                    Margin="5,0,0,0"
                     HorizontalAlignment="Left"
-                    Width="10"
-                    Height="10"
+                    Width="25"
+                    Height="25"
                     Background="Transparent"
-                    Foreground="White"
                     BorderThickness="0"
+                    Padding="-1"
+                    Click="Minimize_Click"
                     >
                     <Image
-                        Source="/Image/minus.png"
-                        Width="10"
-                        Height="10"/>
+                        Source="/Assets/Images/minus.png"
+                        Width="16"
+                        Height="16"
+                        />
+                </Button>
 
-                </Button>
-                <Button
-                    x:Name="Maximize"
-                    Margin="2.5"
-                    HorizontalAlignment="Left"
-                    Width="10"
-                    Height="10"
-                    Content=" ☐ "
-                    Background="Transparent"
-                    Foreground="White"
-                    Padding="0"
-                    FontSize="5"
-                    BorderThickness="0"
-                    BorderBrush="White">
-                </Button>
                 <Button
                     x:Name="CloseButton"
-                    Margin="2.5"
+                    Margin="5,0,0,0"
                     HorizontalAlignment="Left"
-                    Width="10"
-                    Height="10"
-                    Content=" X "
+                    Width="25"
+                    Height="25"
                     Background="Transparent"
-                    Foreground="White"
-                    Padding="0"
-                    FontSize="5"
                     BorderThickness="0"
-                    BorderBrush="White"
-                    />
+                    Click="CloseButton_Click">
+                    <Image
+                        Source="/Assets/Images/close.png"
+                        Width="16"
+                        Height="16"/>
+                </Button>
             </DockPanel>
         </DockPanel>
 
         <!--OutPut and Path area-->
         <DockPanel VerticalAlignment="Top" Height="385" Margin="10,35,10,0">
-            <Border Background="Transparent" BorderBrush="White" BorderThickness="1" CornerRadius="5"> 
+            <Border Background="Transparent" BorderBrush="White" BorderThickness="1" CornerRadius="3">
                 <StackPanel>
                     <TextBox 
                         x:Name="PathBlock"
-                        Margin="5,5,30,0"
+                        Margin="5,5,5,0"
                         Foreground="White"
-                        FontSize="14"
-                        FontFamily="Consolas"
+                        FontSize="10"
+                        FontFamily="pack://application:,,,/Assets/Fonts/#Fira Code"
                         Background="Transparent"
                         BorderThickness="1"
                         Text="Path here"
+                        IsReadOnly="True"
                         />
                     <Border
                         Margin="5,5,5,5"
                         BorderThickness="1"
                         BorderBrush="White"
-                        CornerRadius="7"
+                        CornerRadius="3"
                         Background="Transparent"
-                        Height="360"
+                        Height="350"
 >
                         <TextBox 
                             x:Name="OutputBox"
                             Background="Transparent" 
                             Foreground="White"
-                            FontFamily="Consolas"
-                            FontSize="14"
+                            FontFamily="pack://application:,,,/Assets/Fonts/#Fira Code"
+                            FontSize="10"
                             IsReadOnly="True"
-                            Margin="4"
+                            Margin="8,8,8,8"
                             VerticalScrollBarVisibility="Auto"
                             BorderThickness="0"/>
                     </Border>
@@ -119,16 +111,18 @@
 
             <TextBlock Text=">_" Foreground="White" 
                        Background="Transparent"
-                       FontFamily="Consolas" FontSize="14"
+                       FontFamily="pack://application:,,,/Assets/Fonts/#Fira Code" FontSize="10"
                        VerticalAlignment="Center" Margin="10,0,0,0"/>
 
             <Border Margin="3,5,10,5" BorderThickness="0.6" BorderBrush="Wheat" CornerRadius="3" Background="Transparent">
                 <TextBox x:Name="InputBox"
                      Background="Transparent" Foreground="White"
-                     BorderThickness="0" FontFamily="Consolas"
-                     FontSize="14" PreviewKeyDown="InputBox_PreviewKeyDown"
+                     BorderThickness="0" FontFamily="pack://application:,,,/Assets/Fonts/#Fira Code"
+                     FontSize="10" PreviewKeyDown="InputBox_PreviewKeyDown"
+                     CaretIndex="0"
+                     CaretBrush="White"
                      Margin="3"/>
-            </Border>   
+            </Border>
 
         </DockPanel>
 

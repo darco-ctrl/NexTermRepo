@@ -9,7 +9,26 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Assets\close.png" />
+    <None Remove="Assets\maximise.png" />
+    <None Remove="Assets\minus.png" />
     <None Remove="TerminalEngine.cs~RF295b660.TMP" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\Images\close.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Assets\Images\maximise.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Assets\Images\minus.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Assets\Fonts\" />
   </ItemGroup>
 
 </Project>
