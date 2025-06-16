@@ -59,16 +59,14 @@
                         <!-- OutputBox fills remaining -->
                     </Grid.RowDefinitions>
 
-                    <TextBox x:Name="PathBlock"
+                    <TextBlock x:Name="PathBlock"
                  Grid.Row="0"
                  Margin="5,5,5,0"
                  Foreground="White"
                  FontSize="14"
                  FontFamily="Consolas"
                  Background="Transparent"
-                 BorderThickness="0"
-                 Text="Path Block"
-                 IsReadOnly="True"/>
+                 Text="Path Block"/>
 
                     <Border Grid.Row="1"
                 Margin="5"

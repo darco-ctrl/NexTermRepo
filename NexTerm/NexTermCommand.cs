@@ -19,7 +19,7 @@ namespace NexTerm
         private TerminalEngine Terminal;
 
 
-        public Dictionary<string, (Action Cmd, string Description)> NTermCommands;
+        public Dictionary<string, (Action Cmd, string Description)> Commands;
 
         public List<string> CommandHistory = new List<string>();
 
@@ -29,7 +29,7 @@ namespace NexTerm
             InputBox = ibox;
             Terminal = term;
 
-            NTermCommands = new()
+            Commands = new()
             {
                 ["@clear"] = (ClearTerminal, "Clear Terminal Output."),
                 ["@help"] = (NTShowHelp, "Shows all available NexTerm commands."),
@@ -40,9 +40,9 @@ namespace NexTerm
 
         public void ExecuteCommand(string command)
         {
-            if (NTermCommands.TryGetValue(command.ToLower(), out var cmd))
+            if (Commands.TryGetValue(command.ToLower(), out var cmd))
             {
-                Terminal.PushToOutput($"> {command}");
+                Terminal.PushToOutput($"\n> {command}");
                 Terminal.AddToPreviousCommand(command);
                 AddToHistory(command);
                 cmd.Cmd();
@@ -62,7 +62,7 @@ namespace NexTerm
         private void NTShowHelp()
         {
             OutputBox.AppendText("\n\n");
-            foreach (var entry in NTermCommands)
+            foreach (var entry in Commands)
             {
                 OutputBox.AppendText($"-- {entry.Key.PadRight(12)} - {entry.Value.Description}\n");
             }
@@ -100,5 +100,6 @@ namespace NexTerm
                 CommandHistory.RemoveAt(0);
             CommandHistory.Add($"{DateTime.Now: - hh:mm:ss tt}           -           {command}");
         }
+
     }
 }

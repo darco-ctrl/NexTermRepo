@@ -4,9 +4,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Management.Automation;
+using System.Management.Automation.Remoting;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,6 +19,7 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 
 namespace NexTerm
 {
@@ -23,35 +27,37 @@ namespace NexTerm
     {
         private TextBox OutputBox;
         private TextBox InputBox;
-        private TextBox PathBox;
-        private Process? CMDProcess;
+        private TextBlock PathBox;
         private TextBlock RunningIndicator;
 
-        private NexTermCommand ntcmd;
+        private PowerShell? _ps;
+
+        private NexTermCommand NexTermCommandManager;
 
         private bool TerminalStarted = false;
         private bool CanPushCommand = true;
         private bool IsCommandRunning = false;
 
         private string current_command = "";
-        private string[] loading_char = { "|", "/", "-", "\\" };
+        private string currentDir = "";
 
         private List<string> PreviousCommands = new List<string>();
-        private int currentCmdIndex = 0;
+        private int currentCommandIndex = 0;
         private int maxPreviousCommands = 10;
 
         private StreamWriter? InputWriter;
         private StreamReader? OutputReader;
         private StreamReader? ErrorReader;
 
-        public TerminalEngine(TextBox outputBox, TextBox inputbox, TextBox pathBox, TextBlock loadingAnimationBox)
+        public TerminalEngine(TextBox outputBox, TextBox inputbox, TextBlock pathBox, TextBlock loadingAnimationBox)
         {
             OutputBox = outputBox;
             InputBox = inputbox;
             PathBox = pathBox;
             RunningIndicator = loadingAnimationBox;
 
-            ntcmd = new NexTermCommand(OutputBox, InputBox, this);
+            OnTerminalReady();
+            NexTermCommandManager = new NexTermCommand(OutputBox, InputBox, this);
         }
 
         public void OnTerminalReady()
@@ -59,79 +65,63 @@ namespace NexTerm
             if (TerminalStarted) return;
             TerminalStarted = true;
 
-            CMDProcess = new Process();
-            CMDProcess.StartInfo.FileName = "powershell.exe";
-            CMDProcess.StartInfo.Arguments = "-NoLogo -NoExit -Command \"function prompt { '' }\" \"Write-Host ' NexTerm is Ready \n\n Enter @help for NexTerm Commands\n'\"";
-            CMDProcess.StartInfo.RedirectStandardInput = true;
-            CMDProcess.StartInfo.RedirectStandardOutput = true;
-            CMDProcess.StartInfo.RedirectStandardError = true;
-            CMDProcess.StartInfo.UseShellExecute = false;
-            CMDProcess.StartInfo.CreateNoWindow = true;
-            CMDProcess.StartInfo.StandardOutputEncoding = Encoding.UTF8;
-            CMDProcess.StartInfo.WorkingDirectory = @"C:\";
+            _ps = PowerShell.Create();
+            _ps.Commands.Clear();
+            _ps.AddScript("Get-Location");
+            var result = _ps.Invoke();
 
-            CMDProcess.Start();
-
-            InputWriter = CMDProcess.StandardInput;
-            OutputReader = CMDProcess.StandardOutput;
-            ErrorReader = CMDProcess.StandardError;
-
-            PathUpdater(@"cd C:\");
-
-            Task.Run(() => ReadOutputLoop());
-            Task.Run(() => ErrorOutputReader());
+            currentDir = result.FirstOrDefault()?.ToString() ?? "";
+            PathBox.Text = currentDir;
         }
- 
-        private void ReadOutputLoop()
+
+        private void ExecutePowerShellCommand(string command)
         {
-            while (CMDProcess != null && !CMDProcess.HasExited)
+            if (_ps != null)
             {
-                if (OutputReader == null || Application.Current == null) return;
-
-                string? line = OutputReader?.ReadLine();
-                if (line != null && CanPushCommand)
+                try
                 {
-                    Application.Current.Dispatcher.Invoke(() =>
+
+                    var outputcollection = new PSDataCollection<PSObject>();
+
+                    outputcollection.DataAdded += (sender, e) =>
                     {
-                        if (line.StartsWith("PS>"))
-                        {
-                            line = CommandOverride(line);
+                        var output = outputcollection[e.Index];
+                        var text = output.BaseObject?.ToString();
+                        if (!string.IsNullOrWhiteSpace(text))
+                        { 
+                            Application.Current.Dispatcher.Invoke(() =>
+                            {
+
+                                if (text.Contains("__End_"))
+                                {
+                                    text = text.Substring(0, text.Length - 6);
+                                    UpdateIndicator(false);
+                                }
+
+                                PushToOutput($" {text}");
+
+                                if (command.StartsWith("cd") && command.Contains(":\\"))
+                                {
+                                    PathBox.Text = text;
+                                }
+                            });
                         }
+                    };
 
-                        if (line.Contains("[DONE]"))
-                        {
-                            line = line.Substring(0, line.Length - 6);
-                            UpdateIndicator(false);
-                        }
+                    string fullstring = command;
+                    // Get-Date; Get-Process; Get-Date
+                    if (fullstring.Contains(";"))
+                    {
+                        fullstring.Replace(";", "; | Out-String -Stream");
+                    }
 
-                        PushToOutput($"\n{line}");
-                    });
-                }
-            }
-        }
+                    _ps.Commands.Clear();
+                    _ps.AddScript(fullstring + "; echo __End_");
+                    _ps.BeginInvoke<PSObject, PSObject>(null, outputcollection);
 
-        private string CommandOverride(string command)
-        {
-            //PS>
-            if (command.Length > 16)
-                return $"> {command.Substring(3, command.Length - 16)}";
-            else
-                return "> " + command;
-        }
-
-        private void ErrorOutputReader()
-        {
-            while (CMDProcess != null && !CMDProcess.HasExited)
-            {
-                if (OutputReader == null || Application.Current == null) return;
-
-                string? line = ErrorReader?.ReadLine();
-                if (line != null)
+                } catch (Exception ex)
                 {
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        PushToOutput($"\n {line}");
-                    });
+                    PushToOutput($"\n\n [Error] : {ex.Message}\n");
                 }
             }
         }
@@ -140,62 +130,53 @@ namespace NexTerm
         {
             if (e.Key == Key.Enter && !IsCommandRunning)
             {
-                if (InputWriter != null)
-                {
-                    current_command = InputBox.Text;
-                    InputBox.Text = "";
-                    InputBox.CaretIndex = 0;
-                    currentCmdIndex = PreviousCommands.Count - 1;
-
-                    if (string.IsNullOrWhiteSpace(current_command))
-                        return;
-
-                    if (current_command.StartsWith("@"))
-                    {
-                        ntcmd.ExecuteCommand(current_command);
-                    } else
-                    {
-                        if (current_command.Contains("cd ")) { PathUpdater(current_command); }
-                        ntcmd.AddToHistory(current_command);
-
-                        UpdateIndicator(true);
-                        AddToPreviousCommand(current_command);
-
-                        Debug.WriteLine($"[NexTerm] Running command: {current_command}");
-
-                        InputWriter.WriteLine(current_command + "; echo [DONE]");
-                        InputWriter.Flush();
-                    }
-                }
+                CommandManager();
             }
         }
 
-        private void PathUpdater(string new_cmdpath)
+        private void CommandManager()
         {
-            var parts = new_cmdpath.Split(' ', 2);
-            if (parts.Length == 2)
-                PathBox.Text = parts[1];
+            current_command = InputBox.Text.Trim();
+            InputBox.Text = "";
+            InputBox.CaretIndex = 0;
+
+            if (current_command.Contains("cd"))
+            {
+                current_command += "; Get-Location";
+            }
+
+            AddToPreviousCommand(current_command);
+            if (current_command.StartsWith("@"))
+            {
+                NexTermCommandManager.ExecuteCommand(current_command);
+            } else
+            {
+                UpdateIndicator(true);
+                NexTermCommandManager.AddToHistory(current_command);
+                PushToOutput($"\n> {current_command}");
+                ExecutePowerShellCommand(current_command);
+            }
         }
 
-        public void CloseCMD()
+        public void CloseNexTerm()
         {
             try
             {
-                if (CMDProcess != null && !CMDProcess.HasExited)
+                if (_ps != null)
                 {
-                    InputWriter?.WriteLine("exit");
-                    CMDProcess.Close();
+                    _ps.Stop();
+                    _ps.Dispose();
+                    _ps = null;
                 }
-            }
-            catch (Exception ex)
+            } catch (Exception ex) 
             {
-                Debug.WriteLine($"[NexTerm] Error while closing: {ex.Message}");
+                PushToOutput($"\n [Error] : {ex.Message}");
             }
         }
 
         public void PushToOutput(string text)
         {
-            OutputBox.AppendText(text);
+            OutputBox.AppendText(text + "\n");
             OutputBox.ScrollToEnd();
         }
 
@@ -215,22 +196,23 @@ namespace NexTerm
         {
             if (PreviousCommands.Count == maxPreviousCommands) { PreviousCommands.RemoveAt(0); }
             PreviousCommands.Add(command);
+            currentCommandIndex = PreviousCommands.Count - 1;
         }
 
         public void InputCommandChanger(KeyEventArgs e)
         {
             if (e.Key == Key.Up)
             {
-                currentCmdIndex -= 1;
-                currentCmdIndex = Math.Clamp(currentCmdIndex, 0, maxPreviousCommands - 1);
-                if (currentCmdIndex < PreviousCommands.Count) { InputBox.Text = PreviousCommands[currentCmdIndex]; } else { return; }
+                currentCommandIndex -= 1;
+                currentCommandIndex = Math.Clamp(currentCommandIndex, 0, maxPreviousCommands - 1);
+                if (currentCommandIndex < PreviousCommands.Count) { InputBox.Text = PreviousCommands[currentCommandIndex]; } else { return; }
                 
             }
             else if (e.Key == Key.Down)
             {
-                currentCmdIndex += 1;
-                currentCmdIndex = Math.Clamp(currentCmdIndex, 0, PreviousCommands.Count - 1);
-                InputBox.Text = PreviousCommands[currentCmdIndex];
+                currentCommandIndex += 1;
+                currentCommandIndex = Math.Clamp(currentCommandIndex, 0, PreviousCommands.Count - 1);
+                InputBox.Text = PreviousCommands[currentCommandIndex];
             }
         }
     }

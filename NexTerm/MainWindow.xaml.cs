@@ -54,7 +54,7 @@ namespace NexTerm
 
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
-            terminal.CloseCMD();
+            terminal.CloseNexTerm();
             this.Close();
         }
 
