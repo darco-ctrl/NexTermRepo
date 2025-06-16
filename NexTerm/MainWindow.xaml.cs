@@ -1,4 +1,8 @@
-﻿using System.Numerics;
+﻿// NexTerm Terminal Engine v1.0
+// Author: Darco
+// Description: MainWindow.cs
+
+using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
@@ -23,26 +27,30 @@ namespace NexTerm
 
         private TerminalEngine terminal;
         private Point _offset;
+        private bool isMaximized = false;
 
 
         public MainWindow()
         {
             InitializeComponent();
 
-            terminal = new TerminalEngine(OutputBox, InputBox, PathBlock);
+            terminal = new TerminalEngine(OutputBox, InputBox, PathBlock, AnimationCanTypeBox);
             terminal.OnTerminalReady();
 
         }
 
         private void InputBox_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            if (e.Key == Key.Escape)
+            {
+                InputBox.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+                return;
+            }
             terminal.HandlePreviewKeyDown(e);
         }
 
-        private void Minimize_Click(object sender, RoutedEventArgs e)
-        {
-            this.WindowState = WindowState.Minimized;
-        }
+        private void Minimize_Click(object sender, RoutedEventArgs e) => this.WindowState = WindowState.Minimized;
+
 
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
@@ -52,10 +60,24 @@ namespace NexTerm
 
         private void Window_MouseDown(object sender, MouseButtonEventArgs e)
         {
+            Keyboard.ClearFocus();
             if (e.LeftButton == MouseButtonState.Pressed)
             {
                 this.DragMove();
             }
+            if (e.ClickCount == 2 && e.ChangedButton == MouseButton.Left)
+                ToggleMaximize(sender, e);
+        }
+
+        private void ToggleMaximize(object sender, RoutedEventArgs e)
+        {
+            WindowState = isMaximized ? WindowState.Normal : WindowState.Maximized;
+            isMaximized = !isMaximized;
+        }
+
+        private void PreviousCommand(object sender, KeyEventArgs e)
+        {
+            terminal.InputCommandChanger(e);
         }
     }
 }

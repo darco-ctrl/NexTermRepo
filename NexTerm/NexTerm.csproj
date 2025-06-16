@@ -6,6 +6,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>Assets\NexTerm.ico</ApplicationIcon>
+    <NuGetAudit>True</NuGetAudit>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,6 +15,10 @@
     <None Remove="Assets\maximise.png" />
     <None Remove="Assets\minus.png" />
     <None Remove="TerminalEngine.cs~RF295b660.TMP" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\NexTerm.ico" />
   </ItemGroup>
 
   <ItemGroup>
@@ -29,6 +35,10 @@
 
   <ItemGroup>
     <Folder Include="Assets\Fonts\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.PowerShell.SDK" Version="7.4.0" />
   </ItemGroup>
 
 </Project>
