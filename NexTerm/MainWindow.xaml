@@ -8,7 +8,95 @@
         AllowsTransparency="True"
         Background="Transparent"
         MouseDown="Window_MouseDown">
+    <Window.Resources>
+        <Style TargetType="TabItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="Gray"/>
+            <Setter Property="Margin" Value="0,4,0,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border Background="Transparent"
+                        BorderBrush="White"
+                        BorderThickness="1"
+                        Padding="5,6"
+                        CornerRadius="5">
+                            <ContentPresenter ContentSource="Header"
+                                      HorizontalAlignment="Center"
+                                      RecognizesAccessKey="True"/>
 
+                        </Border>
+
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="Black"/>
+                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="Margin" Value="0"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="TextBox" x:Key="TabTextBox">
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="CaretBrush" Value="White"/>
+            <Setter Property="SelectionBrush" Value="White"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Name="Border"
+            Background="{TemplateBinding Background}"
+            BorderBrush="{TemplateBinding BorderBrush}"
+            BorderThickness="{TemplateBinding BorderThickness}">
+                            <ScrollViewer Margin="0" x:Name="PART_ContentHost"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="Border" Property="BorderBrush" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="BorderBrush" Value="Gray"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="Button" x:Key="TabButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Width" Value="20"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="Margin" Value="0,0,0,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border 
+                    x:Name="TabButtonBorder"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="0"
+                    CornerRadius="3"
+                    Padding="0">
+                            <Image Source="/Assets/Images/close.png" Width="15" Height="15"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="TabButtonBorder" Property="Background" Value="#333"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="35"/>
@@ -60,109 +148,24 @@
             Stroke="White"
             Margin="10,0"
               />
-        <TabControl Grid.Row="1" Margin="10, 5, 30, 0" Background="Transparent"
-                    BorderThickness="0" TabStripPlacement="Top">
-            <TabControl.Resources>
-                <Style TargetType="TabItem">
-                    <Setter Property="Background" Value="Transparent"/>
-                    <Setter Property="Foreground" Value="Gray"/>
-                    <Setter Property="Margin" Value="0,4,0,0"/>
-                    <Setter Property="Template">
-                        <Setter.Value>
-                            <ControlTemplate TargetType="TabItem">
-                                <Border Background="Transparent"
-                                        BorderBrush="White"
-                                        BorderThickness="1"
-                                        Padding="5,6"
-                                        CornerRadius="5">
-                                    <ContentPresenter ContentSource="Header"
-                                                      HorizontalAlignment="Center"
-                                                      RecognizesAccessKey="True"/>
-                                    
-                                </Border>
+        <TabControl x:Name="TabBlock" Grid.Row="1" Margin="10, 5, 35, 0" Background="Transparent"
+                    BorderThickness="0" TabStripPlacement="Top" SelectionChanged="TabBlock_SelectionChanged">
 
-                            </ControlTemplate>
-                        </Setter.Value>
-                    </Setter>
-                    <Style.Triggers>
-                        <Trigger Property="IsSelected" Value="True">
-                            <Setter Property="Background" Value="Black"/>
-                            <Setter Property="Foreground" Value="White"/>
-                            <Setter Property="Margin" Value="0"/>
-                        </Trigger>
-                    </Style.Triggers>
-                </Style>
-                <Style TargetType="TextBox" x:Key="TabTextBox">
-                    <Setter Property="BorderBrush" Value="Transparent"/>
-                    <Setter Property="Background" Value="Transparent"/>
-                    <Setter Property="Foreground" Value="White"/>
-                    <Setter Property="BorderThickness" Value="1"/>
-                    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-                    <Setter Property="CaretBrush" Value="White"/>
-                    <Setter Property="SelectionBrush" Value="White"/>
-                    <Setter Property="SnapsToDevicePixels" Value="True"/>
-                    <Setter Property="OverridesDefaultStyle" Value="True"/>
-                    <Setter Property="Template">
-                        <Setter.Value>
-                            <ControlTemplate TargetType="TextBox">
-                                <Border Name="Border"
-                            Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}">
-                                    <ScrollViewer Margin="0" x:Name="PART_ContentHost"/>
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsFocused" Value="True">
-                                        <Setter TargetName="Border" Property="BorderBrush" Value="White"/>
-                                    </Trigger>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="Border" Property="BorderBrush" Value="Gray"/>
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Setter.Value>
-                    </Setter>
-                </Style>
-                <Style TargetType="Button" x:Key="TabButton">
-                    <Setter Property="Background" Value="Transparent"/>
-                    <Setter Property="Width" Value="20"/>
-                    <Setter Property="Height" Value="20"/>
-                    <Setter Property="Margin" Value="0,0,0,0"/>
-                    <Setter Property="Template">
-                        <Setter.Value>
-                            <ControlTemplate TargetType="Button">
-                                <Border 
-                                    x:Name="TabButtonBorder"
-                                    Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="0"
-                                    CornerRadius="3"
-                                    Padding="0">
-                                    <Image Source="/Assets/Images/close.png" Width="15" Height="15"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="TabButtonBorder" Property="Background" Value="#333"/>
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Setter.Value>
-                    </Setter>
-                </Style>
-            </TabControl.Resources>
-            <TabItem x:Name="NexTerm1">
-                <TabItem.Header>
-                    <StackPanel Orientation="Horizontal" Margin="0">
-                        <ContentControl>
-                            <TextBox Style="{StaticResource TabTextBox}" Text="NexTerm" IsEnabled="{Binding IsSelected, ElementName=NexTerm1}"/>
 
-                        </ContentControl>
-                        <Button Style="{StaticResource TabButton}" IsEnabled="{Binding IsSelected, ElementName=NexTerm1}" Click="OnTabCloseButtonClick"/>
-                    </StackPanel>
-                </TabItem.Header>
-            </TabItem>
         </TabControl>
+
+        <Button Grid.Row="1"
+                HorizontalAlignment="Right"
+                Margin="5,0,10,0"
+                Width="20"
+                Height="20"
+                Background="Transparent"
+                BorderBrush="Transparent"
+                Click="OnAddTabClicked">
+            <Border BorderThickness="1" Background="Transparent" BorderBrush="White">
+                <Image Source="Assets/Images/arrow.png" Width="15" Height="15" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+        </Button>
 
             <!-- Output Area -->
         <Border Grid.Row="2" Margin="5, 0, 5, 5" Background="Transparent" BorderBrush="White" BorderThickness="1" CornerRadius="3">

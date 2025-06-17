@@ -10,33 +10,27 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace NexTerm
 {
-    internal class NexTermCommand
+    public class NexTermCommand
     {
         private int MaxHistory = 100;
 
         private MainWindow mw;
-        private TerminalEngine Terminal;
 
         public Dictionary<string, (Action<string[]> Cmd, string Description)> Commands;
 
         public List<string> CommandHistory = new List<string>();
 
-        public NexTermCommand(MainWindow mainwindow, TerminalEngine term)
+        public NexTermCommand(MainWindow mainwindow)
         {
-            mw = mainwindow;
-            Terminal = term;
+            this.mw = mainwindow;
 
             Commands = new()
             {
-
                 ["@clear"] = (args => ClearTerminal(args), "Clear Terminal Output."),
                 ["@help"] = (args => NTShowHelp(args), "Shows all available NexTerm commands."),
                 ["@ver"] = (args => NTversion(args), "Shows NexTerm version."),
-                ["@history"] = (args => NTHistory(args), "Shows all command recently executed.")
+                ["@history"] = (args => NTHistory(args), "Shows all recently executed commands.")
             };
-
-            Commands["@clear"] = (args => ClearTerminal(args), "Clear Terminal Output");
-
         }
 
         public void ExecuteCommand(string command)
@@ -50,8 +44,8 @@ namespace NexTerm
             if (Commands.TryGetValue(cmdName, out var cmd))
             {
 
-                Terminal.PushToOutput($"\n> {command}");
-                Terminal.AddToPreviousCommand(command);
+                mw.Terminal.PushToOutput($"\n> {command}");
+                mw.Terminal.AddToPreviousCommand(command);
 
                 AddToHistory(command, false);
 
@@ -59,14 +53,13 @@ namespace NexTerm
             }
             else
             {
-                Terminal.ShowError("Unknown NexTerm command: { command}\nUse '@help' to see available commands.");
+                mw.Terminal.ShowError("Unknown NexTerm command: { command}\nUse '@help' to see available commands.");
             }
-
         }
 
         private void ClearTerminal(string[] args)
         {
-            Terminal.ClearOutPut(" NexTerm is Ready \n\n Enter @help for NexTerm Commands\n\n");
+            mw.Terminal.ClearOutPut(" NexTerm is Ready \n\n Enter @help for NexTerm Commands\n\n");
         }
 
         private void NTShowHelp(string[] args)
@@ -81,10 +74,9 @@ namespace NexTerm
 
         private void NTHistory(string[] args)
         {
-
             if (CommandHistory.Count == 0)
             {
-                Terminal.PushToOutput("\n\nYou don't have any command history.\n");
+                mw.Terminal.PushToOutput("\n\nYou don't have any command history.\n");
                 return;
             }
 
@@ -98,12 +90,12 @@ namespace NexTerm
                 sb.AppendLine(entry);
             }
 
-            Terminal.PushToOutput(sb.ToString());
+            mw.Terminal.PushToOutput(sb.ToString());
         }
 
         private void NTversion(string[] args)
         {
-            Terminal.PushToOutput
+            mw.Terminal.PushToOutput
             (
             """
 

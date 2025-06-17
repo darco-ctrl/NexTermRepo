@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <None Remove="Assets\close.png" />
+    <None Remove="Assets\Images\arrow.png" />
     <None Remove="Assets\maximise.png" />
     <None Remove="Assets\minus.png" />
     <None Remove="TerminalEngine.cs~RF295b660.TMP" />
@@ -22,6 +23,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Resource Include="Assets\Images\arrow.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
     <Resource Include="Assets\Images\close.png">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Resource>

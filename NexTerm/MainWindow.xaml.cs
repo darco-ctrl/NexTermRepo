@@ -25,8 +25,10 @@ namespace NexTerm
     public partial class MainWindow : Window
     {
 
-        private TerminalEngine terminal;
-        private Point _offset;
+        public TerminalEngine Terminal;
+        public TabSystem TabManager;
+        public NexTermCommand commandManager;
+
         private bool isMaximized = false;
 
 
@@ -34,8 +36,11 @@ namespace NexTerm
         {
             InitializeComponent();
 
-            terminal = new TerminalEngine(this);
-            terminal.OnTerminalReady();
+            this.Terminal = new TerminalEngine(this);
+            this.commandManager = new NexTermCommand(this);
+            this.TabManager = new TabSystem(this);
+
+            Terminal.OnTerminalReady();
         }
 
         private void InputBox_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -45,7 +50,7 @@ namespace NexTerm
                 InputBox.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
                 return;
             }
-            terminal.HandlePreviewKeyDown(e);
+            Terminal.HandlePreviewKeyDown(e);
         }
 
         private void Minimize_Click(object sender, RoutedEventArgs e) => this.WindowState = WindowState.Minimized;
@@ -53,7 +58,7 @@ namespace NexTerm
 
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
-            terminal.CloseNexTerm();
+            Terminal.CloseNexTerm();
             this.Close();
         }
 
@@ -76,12 +81,36 @@ namespace NexTerm
 
         private void PreviousCommand(object sender, KeyEventArgs e)
         {
-            terminal.InputCommandChanger(e);
+            Terminal.InputCommandChanger(e);
         }
 
-        private void OnTabCloseButtonClick(object sender, RoutedEventArgs e)
+        public void OnTabCloseButtonClick(object sender, RoutedEventArgs e)
         {
 
+        }
+
+        public void SelectTabClicked(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void OnAddTabClicked(object sender, RoutedEventArgs e)
+        {
+            if (TabManager.nexTermTabs.Count < 9)
+            {
+                TabManager.CreateNewTab();
+            } else
+            {
+                MessageBox.Show("Maximum of 9 tabs allowed.", "Limit Reached", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+        }
+
+        private void TabBlock_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            TabItem? selectedTab = TabBlock.SelectedItem as TabItem;
+            if (selectedTab != null && TabManager != null)
+                TabManager.SelectNewTab(selectedTab);
         }
     }
 }
