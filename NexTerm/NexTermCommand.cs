@@ -18,8 +18,7 @@ namespace NexTerm
         private TextBox OutputBox;
         private TerminalEngine Terminal;
 
-
-        public Dictionary<string, (Action Cmd, string Description)> Commands;
+        public Dictionary<string, (Action<string[]> Cmd, string Description)> Commands;
 
         public List<string> CommandHistory = new List<string>();
 
@@ -31,35 +30,48 @@ namespace NexTerm
 
             Commands = new()
             {
-                ["@clear"] = (ClearTerminal, "Clear Terminal Output."),
-                ["@help"] = (NTShowHelp, "Shows all available NexTerm commands."),
-                ["@ver"] = (NTversion, "Shows NexTerm version."),
-                ["@history"] = (NTHistory, "Shows all command recently executed."),
+
+                ["@clear"] = (args => ClearTerminal(args), "Clear Terminal Output."),
+                ["@help"] = (args => NTShowHelp(args), "Shows all available NexTerm commands."),
+                ["@ver"] = (args => NTversion(args), "Shows NexTerm version."),
+                ["@history"] = (args => NTHistory(args), "Shows all command recently executed.")
             };
+
+            Commands["@clear"] = (args => ClearTerminal(args), "Clear Terminal Output");
+
         }
 
         public void ExecuteCommand(string command)
         {
-            if (Commands.TryGetValue(command.ToLower(), out var cmd))
+            command = command.Trim();
+
+            string[] parts = command.Trim().Split(' ', 2);
+            string cmdName = parts[0].ToLower();
+            string[] args = parts.Length > 1 ? parts[1].Split(' ') : Array.Empty<string>();
+
+            if (Commands.TryGetValue(cmdName, out var cmd))
             {
+
                 Terminal.PushToOutput($"\n> {command}");
                 Terminal.AddToPreviousCommand(command);
-                AddToHistory(command);
-                cmd.Cmd();
+
+                AddToHistory(command, false);
+
+                cmd.Cmd(args);
             }
             else
             {
-                Terminal.PushToOutput($"[ERROR] Unknown NexTerm command: {command}\nUse '@help' to see available commands.");
+                Terminal.ShowError("Unknown NexTerm command: { command}\nUse '@help' to see available commands.");
             }
 
         }
 
-        private void ClearTerminal()
+        private void ClearTerminal(string[] args)
         {
             Terminal.ClearOutPut(" NexTerm is Ready \n\n Enter @help for NexTerm Commands\n\n");
         }
 
-        private void NTShowHelp()
+        private void NTShowHelp(string[] args)
         {
             OutputBox.AppendText("\n\n");
             foreach (var entry in Commands)
@@ -69,36 +81,48 @@ namespace NexTerm
             OutputBox.ScrollToEnd();
         }
 
-        private void NTHistory()
+        private void NTHistory(string[] args)
         {
-            if (CommandHistory.Count > 0) 
+
+            if (CommandHistory.Count == 0)
             {
-                string histring = string.Join("\n", CommandHistory);
-                Terminal.PushToOutput($"\n\nCommands History :-\n\n   Time        |   Command\n--------------------------------------\n{histring}\n");
-            } else
-            {
-                Terminal.PushToOutput($"\n\nYou dont have any command history\n");
+                Terminal.PushToOutput("\n\nYou don't have any command history.\n");
+                return;
             }
+
+            var sb = new StringBuilder();
+            sb.AppendLine("\n\nCommands History :-\n");
+            sb.AppendLine("   Time        |   Command");
+            sb.AppendLine("--------------------------------------");
+
+            foreach (string entry in CommandHistory)
+            {
+                sb.AppendLine(entry);
+            }
+
+            Terminal.PushToOutput(sb.ToString());
         }
 
-        private void NTversion()
+        private void NTversion(string[] args)
         {
             Terminal.PushToOutput
             (
             """
 
-            -- NexTerm v1.0.1 by Darco
+            -- NexTerm v2.0
             -- ShellEngine: PowerShell
 
             """
             );
         }
 
-        public void AddToHistory(string command)
+        public void AddToHistory(string command, bool isShellCommand)
         {
             if (CommandHistory.Count >= MaxHistory)
                 CommandHistory.RemoveAt(0);
-            CommandHistory.Add($"{DateTime.Now: - hh:mm:ss tt}           -           {command}");
+
+            string prefix = isShellCommand ? ">" : "@";
+            CommandHistory.Add($"{DateTime.Now: - hh:mm:ss tt} | {prefix} {command}");
         }
 
     }

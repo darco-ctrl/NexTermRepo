@@ -38,7 +38,7 @@ namespace NexTerm
         private bool CanPushCommand = true;
         private bool IsCommandRunning = false;
 
-        private string current_command = "";
+        public string current_command = "";
         private string currentDir = "";
 
         private List<string> PreviousCommands = new List<string>();
@@ -48,6 +48,9 @@ namespace NexTerm
         private StreamWriter? InputWriter;
         private StreamReader? OutputReader;
         private StreamReader? ErrorReader;
+
+        // Config Data 
+        public string CommandSufix = " | Format-Table -AutoSize | Out-String -Stream";
 
         public TerminalEngine(TextBox outputBox, TextBox inputbox, TextBlock pathBox, TextBlock loadingAnimationBox)
         {
@@ -74,7 +77,7 @@ namespace NexTerm
             PathBox.Text = currentDir;
         }
 
-        private void ExecutePowerShellCommand(string command)
+        private void ExecutePowerShellCommand(string command, bool useraw)
         {
             if (_ps != null)
             {
@@ -110,11 +113,17 @@ namespace NexTerm
 
                     string fullstring = command;
                     // Get-Date; Get-Process; Get-Date
-                    if (fullstring.Contains(";"))
+                    if (!useraw)
                     {
-                        fullstring.Replace(";", "; | Out-String -Stream");
+                        if (fullstring.Contains(';'))
+                        {
+                            fullstring = fullstring.Replace(";", CommandSufix);
+                        }
+                        else
+                        {
+                            fullstring += CommandSufix;
+                        }
                     }
-
                     _ps.Commands.Clear();
                     _ps.AddScript(fullstring + "; echo __End_");
                     _ps.BeginInvoke<PSObject, PSObject>(null, outputcollection);
@@ -136,6 +145,8 @@ namespace NexTerm
 
         private void CommandManager()
         {
+            bool useRaw = false;
+
             current_command = InputBox.Text.Trim();
             InputBox.Text = "";
             InputBox.CaretIndex = 0;
@@ -145,6 +156,12 @@ namespace NexTerm
                 current_command += "; Get-Location";
             }
 
+            if (current_command.ToLower().Contains("@raw"))
+            {
+                useRaw = true;
+                current_command = current_command.Substring(4).Trim();
+            }
+
             AddToPreviousCommand(current_command);
             if (current_command.StartsWith("@"))
             {
@@ -152,9 +169,9 @@ namespace NexTerm
             } else
             {
                 UpdateIndicator(true);
-                NexTermCommandManager.AddToHistory(current_command);
+                NexTermCommandManager.AddToHistory(current_command, true);
                 PushToOutput($"\n> {current_command}");
-                ExecutePowerShellCommand(current_command);
+                ExecutePowerShellCommand(current_command, useRaw);
             }
         }
 
@@ -172,6 +189,11 @@ namespace NexTerm
             {
                 PushToOutput($"\n [Error] : {ex.Message}");
             }
+        }
+
+        public void ShowError(string message)
+        {
+            PushToOutput($"[Error] {message}");
         }
 
         public void PushToOutput(string text)
