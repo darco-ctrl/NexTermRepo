@@ -186,12 +186,15 @@
                  Background="Transparent"
                  Text="Path Block"/>
 
+
+    
                 <Border Grid.Row="2"
                 Margin="5"
                 BorderThickness="1"
                 BorderBrush="White"
                 CornerRadius="3"
                 Background="Transparent">
+
                     <TextBox x:Name="OutputBox"
                      Background="Transparent"
                      Foreground="White"
@@ -203,7 +206,8 @@
                      BorderThickness="0"
                      Margin="5"
                      AcceptsReturn="True"
-                     TextWrapping="Wrap"/>
+                     TextWrapping="Wrap">
+                    </TextBox>
                 </Border>
             </Grid>
         </Border>
