@@ -34,9 +34,8 @@ namespace NexTerm
         {
             InitializeComponent();
 
-            terminal = new TerminalEngine(OutputBox, InputBox, PathBlock, AnimationCanTypeBox);
+            terminal = new TerminalEngine(this);
             terminal.OnTerminalReady();
-
         }
 
         private void InputBox_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -78,6 +77,11 @@ namespace NexTerm
         private void PreviousCommand(object sender, KeyEventArgs e)
         {
             terminal.InputCommandChanger(e);
+        }
+
+        private void OnTabCloseButtonClick(object sender, RoutedEventArgs e)
+        {
+
         }
     }
 }

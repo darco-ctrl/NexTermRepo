@@ -25,14 +25,11 @@ namespace NexTerm
 {
     internal class TerminalEngine
     {
-        private TextBox OutputBox;
-        private TextBox InputBox;
-        private TextBlock PathBox;
-        private TextBlock RunningIndicator;
-
+        private MainWindow mw;
         private PowerShell? _ps;
 
         private NexTermCommand NexTermCommandManager;
+        private TabSystem tabSystem;
 
         private bool TerminalStarted = false;
         private bool CanPushCommand = true;
@@ -45,22 +42,16 @@ namespace NexTerm
         private int currentCommandIndex = 0;
         private int maxPreviousCommands = 10;
 
-        private StreamWriter? InputWriter;
-        private StreamReader? OutputReader;
-        private StreamReader? ErrorReader;
-
         // Config Data 
         public string CommandSufix = " | Format-Table -AutoSize | Out-String -Stream";
 
-        public TerminalEngine(TextBox outputBox, TextBox inputbox, TextBlock pathBox, TextBlock loadingAnimationBox)
+        public TerminalEngine(MainWindow mainwindow)
         {
-            OutputBox = outputBox;
-            InputBox = inputbox;
-            PathBox = pathBox;
-            RunningIndicator = loadingAnimationBox;
+            mw = mainwindow;
 
             OnTerminalReady();
-            NexTermCommandManager = new NexTermCommand(OutputBox, InputBox, this);
+            NexTermCommandManager = new NexTermCommand(mainwindow, this);
+            tabSystem = new TabSystem(mainwindow, this);
         }
 
         public void OnTerminalReady()
@@ -74,7 +65,7 @@ namespace NexTerm
             var result = _ps.Invoke();
 
             currentDir = result.FirstOrDefault()?.ToString() ?? "";
-            PathBox.Text = currentDir;
+            mw.PathBlock.Text = currentDir;
         }
 
         private void ExecutePowerShellCommand(string command, bool useraw)
@@ -103,9 +94,9 @@ namespace NexTerm
 
                                 PushToOutput($" {text}");
 
-                                if (command.StartsWith("cd") && command.Contains(":\\"))
+                                if (command.StartsWith("cd") && text.Contains(":\\"))
                                 {
-                                    PathBox.Text = text;
+                                    mw.PathBlock.Text = text;
                                 }
                             });
                         }
@@ -124,6 +115,12 @@ namespace NexTerm
                             fullstring += CommandSufix;
                         }
                     }
+
+                    if (fullstring.Contains("cd"))
+                    {
+                        fullstring += "; Get-Location";
+                    }
+
                     _ps.Commands.Clear();
                     _ps.AddScript(fullstring + "; echo __End_");
                     _ps.BeginInvoke<PSObject, PSObject>(null, outputcollection);
@@ -147,31 +144,31 @@ namespace NexTerm
         {
             bool useRaw = false;
 
-            current_command = InputBox.Text.Trim();
-            InputBox.Text = "";
-            InputBox.CaretIndex = 0;
+            current_command = mw.InputBox.Text.Trim();
+            mw.InputBox.Text = "";
+            mw.InputBox.CaretIndex = 0;
 
-            if (current_command.Contains("cd"))
+            if (!string.IsNullOrWhiteSpace(current_command))
             {
-                current_command += "; Get-Location";
-            }
 
-            if (current_command.ToLower().Contains("@raw"))
-            {
-                useRaw = true;
-                current_command = current_command.Substring(4).Trim();
-            }
+                if (current_command.ToLower().Contains("@raw"))
+                {
+                    useRaw = true;
+                    current_command = current_command.Substring(4).Trim();
+                }
 
-            AddToPreviousCommand(current_command);
-            if (current_command.StartsWith("@"))
-            {
-                NexTermCommandManager.ExecuteCommand(current_command);
-            } else
-            {
-                UpdateIndicator(true);
-                NexTermCommandManager.AddToHistory(current_command, true);
-                PushToOutput($"\n> {current_command}");
-                ExecutePowerShellCommand(current_command, useRaw);
+                AddToPreviousCommand(current_command);
+                if (current_command.StartsWith("@"))
+                {
+                    NexTermCommandManager.ExecuteCommand(current_command);
+                }
+                else
+                {
+                    UpdateIndicator(true);
+                    NexTermCommandManager.AddToHistory(current_command, true);
+                    PushToOutput($"\n> {current_command}");
+                    ExecutePowerShellCommand(current_command, useRaw);
+                }
             }
         }
 
@@ -198,20 +195,20 @@ namespace NexTerm
 
         public void PushToOutput(string text)
         {
-            OutputBox.AppendText(text + "\n");
-            OutputBox.ScrollToEnd();
+            mw.OutputBox.AppendText(text + "\n");
+            mw.OutputBox.ScrollToEnd();
         }
 
         public void ClearOutPut(string text)
         {
-            OutputBox.Text = text;
-            OutputBox.ScrollToEnd();
+            mw.OutputBox.Text = text;
+            mw.OutputBox.ScrollToEnd();
         }
 
         private void UpdateIndicator(bool isRunning)
         {
             IsCommandRunning = isRunning;
-            RunningIndicator.Foreground = IsCommandRunning ? Brushes.Red : Brushes.LightGreen;
+            mw.IsRunningIdecator.Foreground = IsCommandRunning ? Brushes.Red : Brushes.LightGreen;
         }
 
         public void AddToPreviousCommand(string command)
@@ -227,14 +224,14 @@ namespace NexTerm
             {
                 currentCommandIndex -= 1;
                 currentCommandIndex = Math.Clamp(currentCommandIndex, 0, maxPreviousCommands - 1);
-                if (currentCommandIndex < PreviousCommands.Count) { InputBox.Text = PreviousCommands[currentCommandIndex]; } else { return; }
+                if (currentCommandIndex < PreviousCommands.Count) { mw.InputBox.Text = PreviousCommands[currentCommandIndex]; } else { return; }
                 
             }
             else if (e.Key == Key.Down)
             {
                 currentCommandIndex += 1;
                 currentCommandIndex = Math.Clamp(currentCommandIndex, 0, PreviousCommands.Count - 1);
-                InputBox.Text = PreviousCommands[currentCommandIndex];
+                mw.InputBox.Text = PreviousCommands[currentCommandIndex];
             }
         }
     }

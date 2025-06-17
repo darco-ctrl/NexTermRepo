@@ -14,18 +14,16 @@ namespace NexTerm
     {
         private int MaxHistory = 100;
 
-        private TextBox InputBox;
-        private TextBox OutputBox;
+        private MainWindow mw;
         private TerminalEngine Terminal;
 
         public Dictionary<string, (Action<string[]> Cmd, string Description)> Commands;
 
         public List<string> CommandHistory = new List<string>();
 
-        public NexTermCommand(TextBox opBox, TextBox ibox, TerminalEngine term)
+        public NexTermCommand(MainWindow mainwindow, TerminalEngine term)
         {
-            OutputBox = opBox;
-            InputBox = ibox;
+            mw = mainwindow;
             Terminal = term;
 
             Commands = new()
@@ -73,12 +71,12 @@ namespace NexTerm
 
         private void NTShowHelp(string[] args)
         {
-            OutputBox.AppendText("\n\n");
+            mw.OutputBox.AppendText("\n\n");
             foreach (var entry in Commands)
             {
-                OutputBox.AppendText($"-- {entry.Key.PadRight(12)} - {entry.Value.Description}\n");
+                mw.OutputBox.AppendText($"-- {entry.Key.PadRight(12)} - {entry.Value.Description}\n");
             }
-            OutputBox.ScrollToEnd();
+            mw.OutputBox.ScrollToEnd();
         }
 
         private void NTHistory(string[] args)
