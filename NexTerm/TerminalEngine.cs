@@ -35,7 +35,6 @@ namespace NexTerm
 
         private bool TerminalStarted = false;
         private bool IsCommandRunning = false;
-        private bool updatePath = false;
 
         public string current_command = "";
         public string currentDir = "";
@@ -45,7 +44,7 @@ namespace NexTerm
         private int maxPreviousCommands = 10;
 
         // Config Data 
-        public string CommandSufix = " | Format-Table -AutoSize | Out-String -Stream";
+        public string CommandSufix = " | Format-Table -AutoSize | Out-String -Stream;";
 
         public TerminalEngine(MainWindow mw)
         {
@@ -56,7 +55,6 @@ namespace NexTerm
         {
             if (TerminalStarted) return;
             TerminalStarted = true;
-            SetPath(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
         }
 
         private void ExecuteToPowerShell(string command, bool useraw)
@@ -77,16 +75,18 @@ namespace NexTerm
                         { 
                             Application.Current.Dispatcher.Invoke(() =>
                             {
-                                if (text.StartsWith("Path")) return;
-                                if (updatePath) return;
-
-                                PushToOutput($" {text}");
 
                                 if (Directory.Exists(text.Trim()))
                                 {
                                     currentDir = text.Trim();
                                     mw.PathBlock.Text = currentDir;
+                                    if (!command.Contains("Get-Location") && !command.Contains("cd"))
+                                    {
+                                        text = "";
+                                    }
                                 }
+
+                                PushToOutput($" {text}");
                             });
                         }
                     };
@@ -105,8 +105,10 @@ namespace NexTerm
                     }
                     if (!command.Contains("Get-Location"))
                     {
-                        fullstring += "; Get-Location" + CommandSufix;
+                        fullstring += "; Get-Location | Select-Object -ExpandProperty Path";
                     }
+
+                    MessageBox.Show(fullstring);
 
                     _ps.Commands.Clear();
                     _ps.AddScript(fullstring);
@@ -154,15 +156,11 @@ namespace NexTerm
                 else
                 {
                     mw.commandManager.AddToHistory(command, true);
-                    if (!updatePath)
-                    {
-                        PushToOutput($"\n> {command}");
-                    }
+                    PushToOutput($"\n> {command}");
 
                     ExecuteToPowerShell(command, useRaw);
                 }
             }
-            updatePath = false;
             UpdateIndicator(false);
         }
 
@@ -239,12 +237,10 @@ namespace NexTerm
             mw.OutputBox.Text = log;
         }
 
-        public void SetPath(string path)
+        public void UpdateDirectory(string path)
         {
-            updatePath = true;
             if (Directory.Exists(path))
             {
-                TerminalCommandExecuter($"Set-Location \"{path}\"  > $null");
                 currentDir = path;
                 mw.PathBlock.Text = currentDir;
             }

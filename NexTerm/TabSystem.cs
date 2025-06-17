@@ -21,6 +21,14 @@ namespace NexTerm
             public List<string> TabCommandHistory { get; set; } = new();
 
             public PowerShell ps { get; set; } = PowerShell.Create();
+
+            public TabData() 
+            {
+                ps = PowerShell.Create();
+                ps.AddCommand("Set-Location").AddArgument(TabPath);
+                ps.Invoke();
+                ps.Commands.Clear();
+            }
         }
 
         public Dictionary<TabItem, TabData> nexTermTabs = new();
@@ -85,7 +93,6 @@ namespace NexTerm
 
             mw.TabBlock.SelectedItem = newTab;
             SelectNewTab(newTab);
-            mw.Terminal.SetPath(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
         }
 
         public void SelectNewTab(TabItem tab)
@@ -108,6 +115,7 @@ namespace NexTerm
 
             // Load new tab data
             mw.Terminal.current_tab = tab;
+            mw.Terminal.UpdateDirectory(newData.TabPath);
             mw.Terminal.setOutputLog(newData.outputlog);
             mw.Terminal._ps = newData.ps;
             mw.commandManager.CommandHistory = newData.TabCommandHistory;
