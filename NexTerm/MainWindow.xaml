@@ -6,13 +6,14 @@
         WindowStyle="None"
         ResizeMode="CanResizeWithGrip"
         AllowsTransparency="True"
-        Background="Transparent"
-        MouseDown="Window_MouseDown">
+        Background="Transparent">
     <Window.Resources>
         <Style TargetType="TabItem">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="Gray"/>
             <Setter Property="Margin" Value="0,4,0,0"/>
+            <Setter Property="MinWidth" Value="4"/>
+            <Setter Property="MaxWidth" Value="200"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TabItem">
@@ -26,7 +27,6 @@
                                       RecognizesAccessKey="True"/>
 
                         </Border>
-
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -82,7 +82,7 @@
                     Background="{TemplateBinding Background}"
                     BorderBrush="{TemplateBinding BorderBrush}"
                     BorderThickness="0"
-                    CornerRadius="3"
+                    CornerRadius="1"
                     Padding="0">
                             <Image Source="/Assets/Images/close.png" Width="15" Height="15"
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -119,10 +119,18 @@
                 Background="Transparent"
                 BorderThickness="1"
                 BorderBrush="White"
-                CornerRadius="3"/>
+                CornerRadius="1"/>
 
         <!--  Title Bar with Buttons -->
-        <DockPanel Grid.Row="0">
+        <Border 
+                Grid.Row="0"
+                Background="Transparent"
+                BorderThickness="0"
+                BorderBrush="Transparent"
+                CornerRadius="1"
+                MouseDown="Window_MouseDown"/>
+
+        <DockPanel  Grid.Row="0">
             <TextBlock Text="  NexTerm" VerticalAlignment="Center" Foreground="White" FontWeight="Bold" FontSize="14"/>
             <DockPanel HorizontalAlignment="Right" Margin="0,0,10,0">
                 <Button x:Name="Minimize" Background="Transparent" BorderThickness="0" Margin="2" Click="Minimize_Click">
@@ -150,8 +158,6 @@
               />
         <TabControl x:Name="TabBlock" Grid.Row="1" Margin="10, 5, 35, 0" Background="Transparent"
                     BorderThickness="0" TabStripPlacement="Top" SelectionChanged="TabBlock_SelectionChanged">
-
-
         </TabControl>
 
         <Button Grid.Row="1"
@@ -168,7 +174,7 @@
         </Button>
 
             <!-- Output Area -->
-        <Border Grid.Row="2" Margin="5, 0, 5, 5" Background="Transparent" BorderBrush="White" BorderThickness="1" CornerRadius="3">
+        <Border Grid.Row="2" Margin="5, 0, 5, 5" Background="Transparent" BorderBrush="White" BorderThickness="1" CornerRadius="1">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -186,16 +192,18 @@
                  Background="Transparent"
                  Text="Path Block"/>
 
+                <Line 
+                Grid.Row="1"
+                X1="0" Y1="0" X2="1" Y2="0"
+                Stretch="Fill"
+                VerticalAlignment="Top"
+                HorizontalAlignment="Stretch"
+                Stroke="White"
+                Margin="5,0"
+                  />
 
-    
-                <Border Grid.Row="2"
-                Margin="5"
-                BorderThickness="1"
-                BorderBrush="White"
-                CornerRadius="3"
-                Background="Transparent">
-
-                    <TextBox x:Name="OutputBox"
+                <TextBox 
+                     x:Name="OutputBox"
                      Background="Transparent"
                      Foreground="White"
                      FontFamily="Consolas"
@@ -206,9 +214,10 @@
                      BorderThickness="0"
                      Margin="5"
                      AcceptsReturn="True"
-                     TextWrapping="Wrap">
-                    </TextBox>
-                </Border>
+                     TextWrapping="Wrap"
+                     Grid.Row="2">
+                </TextBox>
+
             </Grid>
         </Border>
 
@@ -225,7 +234,7 @@
                 Margin="4,0,5,0"/>
             <Border BorderThickness="0.6"
                     BorderBrush="Wheat"
-                    CornerRadius="3"
+                    CornerRadius="1"
                     Background="Transparent"
                     Width="Auto"
                     VerticalAlignment="Center"

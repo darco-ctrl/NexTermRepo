@@ -1,4 +1,9 @@
-﻿using System;
+﻿// NexTerm Terminal Engine v1.1.0
+// Author: Darco
+// Description: NexTermCommands Handler
+
+
+using System;
 using System.Collections.Generic;
 using System.IO.Packaging;
 using System.Linq;
@@ -41,10 +46,9 @@ namespace NexTerm
             string cmdName = parts[0].ToLower();
             string[] args = parts.Length > 1 ? parts[1].Split(' ') : Array.Empty<string>();
 
+            mw.Terminal.PushToOutput($"\n> {command}");
             if (Commands.TryGetValue(cmdName, out var cmd))
             {
-
-                mw.Terminal.PushToOutput($"\n> {command}");
                 mw.Terminal.AddToPreviousCommand(command);
 
                 AddToHistory(command, false);
@@ -53,13 +57,39 @@ namespace NexTerm
             }
             else
             {
-                mw.Terminal.ShowError("Unknown NexTerm command: { command}\nUse '@help' to see available commands.");
+                mw.Terminal.ShowError($"Unknown NexTerm command: {command}\nUse '@help' to see available commands.");
             }
         }
-
         private void ClearTerminal(string[] args)
         {
-            mw.Terminal.ClearOutPut(" NexTerm is Ready \n\n Enter @help for NexTerm Commands\n\n");
+            if (args.Length == 1) 
+            {
+                if (args[0].Trim().ToLower() == "-force")
+                {
+                    mw.Terminal.ClearOutPut("");
+                } else
+                {
+                    mw.Terminal.ShowError($"Unknown arguement '{args[0]}'");
+                }
+                
+            } else if (args.Length > 1)
+            {
+                mw.Terminal.ShowError("The @clear command only supports a single argument");
+            } else
+            {
+                mw.Terminal.ClearOutPut
+                (
+                """
+                   ╔══════════════════════════════════════════════╗
+                   ║                                              ║
+                   ║               NexTerm v1.1.0                 ║
+                   ║         Shell Engine: PowerShell             ║
+                   ║                                              ║
+                   ╚══════════════════════════════════════════════╝
+                """
+                );
+            }
+
         }
 
         private void NTShowHelp(string[] args)
@@ -82,8 +112,8 @@ namespace NexTerm
 
             var sb = new StringBuilder();
             sb.AppendLine("\n\nCommands History :-\n");
-            sb.AppendLine("   Time        |   Command");
-            sb.AppendLine("--------------------------------------");
+            sb.AppendLine("       Time    |    Command       ");
+            sb.AppendLine("──────────────────────────────────");
 
             foreach (string entry in CommandHistory)
             {
@@ -98,10 +128,11 @@ namespace NexTerm
             mw.Terminal.PushToOutput
             (
             """
-
-            -- NexTerm v2.0
-            -- ShellEngine: PowerShell
-
+               ╔══════════════════════════════════════════════╗
+               ║              NexTerm v1.1.0                  ║
+               ║        Shell Engine: PowerShell              ║
+               ║     Created by: Darco (Git: darco-ctrl)      ║
+               ╚══════════════════════════════════════════════╝
             """
             );
         }

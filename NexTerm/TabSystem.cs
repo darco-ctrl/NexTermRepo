@@ -1,4 +1,8 @@
-﻿using System;
+﻿// NexTerm Terminal Engine v1.1.0
+// Author: Darco
+// Description: TabManager
+
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -8,6 +12,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Media;
 
 namespace NexTerm
 {
@@ -17,7 +22,15 @@ namespace NexTerm
 
         public class TabData
         {
-            public string outputlog { get; set; } = "";
+            public string outputlog { get; set; } =
+                """
+                   ╔══════════════════════════════════════════════╗
+                   ║                                              ║
+                   ║               NexTerm v1.1.0                 ║
+                   ║         Shell Engine: PowerShell             ║
+                   ║                                              ║
+                   ╚══════════════════════════════════════════════╝
+                """;
             public string TabPath { get; set; } = $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}";
             public List<string> TabCommandHistory { get; set; } = new();
 
@@ -93,55 +106,64 @@ namespace NexTerm
 
         public void CreateNewTab()
         {
-            TabItem newTab = new TabItem();
-            newTab.Name = $"NexTermTab{nexTermTabs.Count + 1}";
-
-            StackPanel tabheader = new StackPanel
+            try
             {
-                Orientation = Orientation.Horizontal,
-                Margin = new Thickness(0)
-            };
+                TabItem newTab = new TabItem();
+                newTab.Name = $"NexTermTab{nexTermTabs.Count + 1}";
 
-            TextBox TabTextBox = new TextBox
+                StackPanel tabheader = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Margin = new Thickness(0)
+                };
+
+                TextBox TabTextBox = new TextBox
+                {
+                    Text = $"NexTerm{nexTermTabs.Count + 1}",
+                    Style = (Style)mw.FindResource("TabTextBox"),
+                    IsEnabled = false,
+                    Tag = "TagId",
+                };
+                ContentControl textcontainer = new ContentControl();
+                textcontainer.Content = TabTextBox;
+
+                Button TabClosebutton = new Button
+                {
+                    Name = $"Button{nexTermTabs.Count + 1}",
+                    Style = (Style)mw.FindResource("TabButton"),
+                    IsEnabled = false,
+                    Tag = newTab
+                };
+                TabClosebutton.Click += mw.OnTabCloseButtonClick;
+
+                tabheader.Children.Add(textcontainer);
+                tabheader.Children.Add(TabClosebutton);
+
+                newTab.Header = tabheader;
+
+                //mw.RegisterName(newTab.Name, newTab);
+
+                Binding isSelectedBinding = new Binding("IsSelected")
+                {
+                    Source = newTab
+                };
+                TabTextBox.SetBinding(TextBox.IsEnabledProperty, isSelectedBinding);
+                TabClosebutton.SetBinding(Button.IsEnabledProperty, isSelectedBinding);
+
+                mw.TabBlock.Items.Add(newTab);
+
+                TabData newTabData = new TabData();
+
+                nexTermTabs.Add(newTab, newTabData);
+                PSActivator(nexTermTabs[newTab]);
+
+                mw.TabBlock.SelectedItem = newTab;
+
+                SelectNewTab(newTab);
+            } catch (Exception ex)
             {
-                Text = $"NexTerm{nexTermTabs.Count + 1}",
-                Style = (Style)mw.FindResource("TabTextBox"),
-                IsEnabled = false
-            };
-            ContentControl textcontainer = new ContentControl();
-            textcontainer.Content = TabTextBox;
-
-            Button TabClosebutton = new Button
-            {
-                Name = $"Button{nexTermTabs.Count + 1}",
-                Style = (Style)mw.FindResource("TabButton"),
-                IsEnabled = false
-            };
-            TabClosebutton.Click += mw.OnTabCloseButtonClick;
-
-            tabheader.Children.Add(textcontainer);
-            tabheader.Children.Add(TabClosebutton);
-
-            newTab.Header = tabheader;
-
-            mw.RegisterName(newTab.Name, newTab);
-
-            Binding isSelectedBinding = new Binding("IsSelected")
-            {
-                Source = newTab
-            };
-            TabTextBox.SetBinding(TextBox.IsEnabledProperty, isSelectedBinding);
-            TabClosebutton.SetBinding(Button.IsEnabledProperty, isSelectedBinding);
-
-            mw.TabBlock.Items.Add(newTab);
-
-            TabData newTabData = new TabData();
-
-            nexTermTabs.Add(newTab, newTabData);
-            PSActivator(nexTermTabs[newTab]);
-
-            mw.TabBlock.SelectedItem = newTab;
-            SelectNewTab(newTab);
+                mw.Terminal.ShowError($"{ex}");
+            }
         }
 
         private void PSActivator(TabData session)
