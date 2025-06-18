@@ -1,4 +1,4 @@
-﻿// NexTerm Terminal Engine v1.0
+﻿// NexTerm Terminal Engine v1.1.0
 // Author: Darco
 // Description: Core engine for terminal input/output + command handling
 
@@ -140,12 +140,16 @@ namespace NexTerm
         {
             try
             {
-                if (_ps != null)
+                foreach (var tab in mw.TabManager.nexTermTabs.Values)
                 {
-                    _ps.Stop();
-                    _ps.Dispose();
-                    _ps = null;
+                    if (tab.ps != null)
+                    {
+                        tab.ps.Stop();
+                        tab.ps.Dispose();
+                    }
                 }
+
+
             } catch (Exception ex) 
             {
                 PushToOutput($"\n [Error] : {ex.Message}");
@@ -154,7 +158,7 @@ namespace NexTerm
 
         public void ShowError(string message)
         {
-            PushToOutput($"[Error] {message}");
+            PushToOutput($"\n\n[Error] {message}");
         }
 
         public void PushToOutput(string text)
@@ -190,6 +194,7 @@ namespace NexTerm
                 currentCommandIndex -= 1;
                 currentCommandIndex = Math.Clamp(currentCommandIndex, 0, maxPreviousCommands - 1);
                 if (currentCommandIndex < PreviousCommands.Count) { mw.InputBox.Text = PreviousCommands[currentCommandIndex]; } else { return; }
+                mw.InputBox.CaretIndex = mw.InputBox.Text.Length;
                 
             }
             else if (e.Key == Key.Down)

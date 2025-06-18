@@ -1,6 +1,6 @@
-﻿// NexTerm Terminal Engine v1.0
+﻿// NexTerm Terminal Engine v1.1.0
 // Author: Darco
-// Description: MainWindow.cs
+// Description: Core
 
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -86,12 +86,29 @@ namespace NexTerm
 
         public void OnTabCloseButtonClick(object sender, RoutedEventArgs e)
         {
+            if (sender is Button closeButton && closeButton.Tag is TabItem tabToClose)
+            {
+                int idx = TabBlock.Items.IndexOf(tabToClose);
+                if (TabBlock.Items.Count > 1)
+                { 
 
-        }
+                    if (TabManager.nexTermTabs.TryGetValue(tabToClose, out var tabData))
+                    {
+                        tabData.ps.Dispose();
+                        TabManager.nexTermTabs.Remove(tabToClose);
+                    }
 
-        public void SelectTabClicked(object sender, RoutedEventArgs e)
-        {
+                    TabBlock.Items.Remove(tabToClose);
 
+                    if (TabBlock.Items.Count > 0)
+                    {
+                        TabBlock.SelectedIndex = idx - 1;
+                    }
+                } else
+                {
+                    CloseButton_Click(sender, e);
+                }
+            }
         }
 
         private void OnAddTabClicked(object sender, RoutedEventArgs e)
