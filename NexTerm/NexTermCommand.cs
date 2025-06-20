@@ -19,7 +19,7 @@ namespace NexTerm
     {
         private int MaxHistory = 100;
 
-        private MainWindow mw;
+        private MainWindow mainWindow;
 
         public Dictionary<string, (Action<string[]> Cmd, string Description)> Commands;
 
@@ -27,7 +27,7 @@ namespace NexTerm
 
         public NexTermCommand(MainWindow mainwindow)
         {
-            this.mw = mainwindow;
+            this.mainWindow = mainwindow;
 
             Commands = new()
             {
@@ -46,10 +46,10 @@ namespace NexTerm
             string cmdName = parts[0].ToLower();
             string[] args = parts.Length > 1 ? parts[1].Split(' ') : Array.Empty<string>();
 
-            mw.Terminal.PushToOutput($"\n> {command}");
+            mainWindow.Terminal.PushToOutput($"\n> {command}");
             if (Commands.TryGetValue(cmdName, out var cmd))
             {
-                mw.Terminal.AddToPreviousCommand(command);
+                mainWindow.Terminal.AddToPreviousCommand(command);
 
                 AddToHistory(command, false);
 
@@ -57,7 +57,7 @@ namespace NexTerm
             }
             else
             {
-                mw.Terminal.ShowError($"Unknown NexTerm command: {command}\nUse '@help' to see available commands.");
+                mainWindow.Terminal.ShowError($"Unknown NexTerm command: {command}\nUse '@help' to see available commands.");
             }
         }
         private void ClearTerminal(string[] args)
@@ -66,18 +66,18 @@ namespace NexTerm
             {
                 if (args[0].Trim().ToLower() == "-force")
                 {
-                    mw.Terminal.ClearOutPut("");
+                    mainWindow.Terminal.SetOutput("");
                 } else
                 {
-                    mw.Terminal.ShowError($"Unknown arguement '{args[0]}'");
+                    mainWindow.Terminal.ShowError($"Unknown arguement '{args[0]}'");
                 }
                 
             } else if (args.Length > 1)
             {
-                mw.Terminal.ShowError("The @clear command only supports a single argument");
+                mainWindow.Terminal.ShowError("The @clear command only supports a single argument");
             } else
             {
-                mw.Terminal.ClearOutPut
+                mainWindow.Terminal.SetOutput
                 (
                 """
                    ╔══════════════════════════════════════════════╗
@@ -94,19 +94,19 @@ namespace NexTerm
 
         private void NTShowHelp(string[] args)
         {
-            mw.OutputBox.AppendText("\n\n");
+            mainWindow.OutputBox.AppendText("\n\n");
             foreach (var entry in Commands)
             {
-                mw.OutputBox.AppendText($"-- {entry.Key.PadRight(12)} - {entry.Value.Description}\n");
+                mainWindow.OutputBox.AppendText($"-- {entry.Key.PadRight(12)} - {entry.Value.Description}\n");
             }
-            mw.OutputBox.ScrollToEnd();
+            mainWindow.OutputBox.ScrollToEnd();
         }
 
         private void NTHistory(string[] args)
         {
             if (CommandHistory.Count == 0)
             {
-                mw.Terminal.PushToOutput("\n\nYou don't have any command history.\n");
+                mainWindow.Terminal.PushToOutput("\n\nYou don't have any command history.\n");
                 return;
             }
 
@@ -120,12 +120,12 @@ namespace NexTerm
                 sb.AppendLine(entry);
             }
 
-            mw.Terminal.PushToOutput(sb.ToString());
+            mainWindow.Terminal.PushToOutput(sb.ToString());
         }
 
         private void NTversion(string[] args)
         {
-            mw.Terminal.PushToOutput
+            mainWindow.Terminal.PushToOutput
             (
             """
                ╔══════════════════════════════════════════════╗

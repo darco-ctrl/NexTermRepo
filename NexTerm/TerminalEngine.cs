@@ -8,9 +8,6 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Management.Automation;
-using System.Management.Automation.Remoting;
-using System.Management.Automation.Runspaces;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -27,13 +24,12 @@ namespace NexTerm
 {
     public class TerminalEngine
     {
-        private MainWindow mw;
+        private MainWindow mainWindow;
 
 
         // Tab info
         public TabItem? current_tab;
-        public PowerShell? _ps;
-        public PSDataCollection<PSObject>? OutputCollection;
+        public StreamWriter? _streamWriter;
 
         private bool TerminalStarted = false;
         private bool IsCommandRunning = false;
@@ -45,12 +41,9 @@ namespace NexTerm
         private int currentCommandIndex = 0;
         private int maxPreviousCommands = 10;
 
-        // Config Data 
-        public string CommandSufix = " | Format-Table -AutoSize | Out-String -Stream;";
-
-        public TerminalEngine(MainWindow mw)
+        public TerminalEngine(MainWindow mainWindow)
         {
-            this.mw = mw;
+            this.mainWindow = mainWindow;
         }
 
         public void OnTerminalReady()
@@ -59,31 +52,13 @@ namespace NexTerm
             TerminalStarted = true;
         }
 
-        private void ExecutePowerShellCommand(string command, bool useRaw)
+        private void ExecutePowerShellCommand(string command)
         {
-            if (_ps == null || OutputCollection == null) return;
-
+            if (_streamWriter == null) { return; }
             try
             {
-                string fullCommand = command;
-                if (!useRaw)
-                {
-                    if (fullCommand.Contains(';'))
-                        fullCommand = fullCommand.Replace(";", CommandSufix);
-                    else
-                        fullCommand += CommandSufix;
-                }
-
-                if (!command.Contains("Get-Location") && !command.Contains("cd"))
-                {
-                    fullCommand += "; Get-Location";
-                }
-
-                _ps.Commands.Clear();
-                _ps.Streams.ClearStreams();
-
-                _ps.AddScript(fullCommand);
-                _ps.BeginInvoke<PSObject, PSObject>(null, OutputCollection);
+                _streamWriter.WriteLine(command);
+                _streamWriter.Flush();
             }
             catch (Exception ex)
             {
@@ -97,55 +72,59 @@ namespace NexTerm
             {
                 if (current_tab == null) return;
 
-                current_command = mw.InputBox.Text.Trim();
-                mw.InputBox.Text = "";
-                mw.InputBox.CaretIndex = 0;
+                current_command = mainWindow.InputBox.Text.Trim();
+                mainWindow.InputBox.Text = "";
+                mainWindow.InputBox.CaretIndex = 0;
 
-                mw.TabManager.nexTermTabs[current_tab].CurrentCommand = current_command;
-                TerminalCommandExecuter(current_command);
+                mainWindow.TabManager.nexTermTabs[current_tab].CurrentCommand = current_command;
+                UpdateIndicator(true);
+                CommandModifier(current_command);
+                UpdateIndicator(false);
             }
         }
 
-        private void TerminalCommandExecuter(string command)
+        private void CommandModifier(string command)
         {
-            bool useRaw = false;
-            UpdateIndicator(true);
 
             if (!string.IsNullOrWhiteSpace(command))
             {
+                if (command.TrimStart().StartsWith("cd", StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowError("Please use Get-Location or Set-Location instead of 'cd'");
+                    return;
+                }
 
                 if (command.ToLower().Contains("@raw"))
                 {
-                    useRaw = true;
                     command = command.Substring(4).Trim();
                 }
 
                 AddToPreviousCommand(command);
                 if (command.StartsWith("@"))
                 {
-                    mw.commandManager.ExecuteCommand(command);
+                    mainWindow.commandManager.ExecuteCommand(command);
                 }
                 else
                 {
-                    mw.commandManager.AddToHistory(command, true);
-                    PushToOutput($"\n> {command}");
+                    mainWindow.commandManager.AddToHistory(command, true);
 
-                    ExecutePowerShellCommand(command, useRaw);
+                    ExecutePowerShellCommand(command);
                 }
             }
-            UpdateIndicator(false);
         }
 
         public void CloseNexTerm()
         {
             try
             {
-                foreach (var tab in mw.TabManager.nexTermTabs.Values)
+                foreach (var tab in mainWindow.TabManager.nexTermTabs.Values)
                 {
-                    if (tab.ps != null)
+                    try
                     {
-                        tab.ps.Stop();
-                        tab.ps.Dispose();
+                        tab.Dispose();
+                    } catch (Exception ex)
+                    {
+                        MessageBox.Show($"Could not close tab.\n\nException: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 }
 
@@ -163,22 +142,23 @@ namespace NexTerm
 
         public void PushToOutput(string text)
         {
-            mw.OutputBox.AppendText(text + "\n");
-            mw.OutputBox.ScrollToEnd();
+            mainWindow.OutputBox.AppendText(text);
+            mainWindow.OutputBox.ScrollToEnd();
         }
 
-        public void ClearOutPut(string text)
+        public void SetOutput(string text)
         {
-            mw.OutputBox.Text = text;
-            mw.OutputBox.ScrollToEnd();
+            mainWindow.OutputBox.Text = text;
+            mainWindow.OutputBox.ScrollToEnd();
         }
 
         private void UpdateIndicator(bool isRunning)
         {
             IsCommandRunning = isRunning;
-            mw.IsRunningIdecator.Foreground = IsCommandRunning ? Brushes.Red : Brushes.LightGreen;
+            mainWindow.IsRunningIdecator.Foreground = IsCommandRunning ? Brushes.Red : Brushes.LightGreen;
         }
 
+        // Add to privous Command
         public void AddToPreviousCommand(string command)
         {
             currentCommandIndex = PreviousCommands.Count;
@@ -187,33 +167,40 @@ namespace NexTerm
             currentCommandIndex = PreviousCommands.Count;
         }
 
+        // Press Up and down arrow key to get previos command
         public void InputCommandChanger(KeyEventArgs e)
         {
             if (e.Key == Key.Up)
             {
                 currentCommandIndex -= 1;
                 currentCommandIndex = Math.Clamp(currentCommandIndex, 0, maxPreviousCommands - 1);
-                if (currentCommandIndex < PreviousCommands.Count) { mw.InputBox.Text = PreviousCommands[currentCommandIndex]; } else { return; }
-                mw.InputBox.CaretIndex = mw.InputBox.Text.Length;
+                if (PreviousCommands.Count > 0 && currentCommandIndex < PreviousCommands.Count)
+                {
+                    mainWindow.InputBox.Text = PreviousCommands[currentCommandIndex];
+                } else
+                {
+                    return;
+                }
+                mainWindow.InputBox.CaretIndex = mainWindow.InputBox.Text.Length;
                 
             }
             else if (e.Key == Key.Down)
             {
                 currentCommandIndex += 1;
                 currentCommandIndex = Math.Clamp(currentCommandIndex, 0, PreviousCommands.Count - 1);
-                mw.InputBox.Text = PreviousCommands[currentCommandIndex];
+                mainWindow.InputBox.Text = PreviousCommands[currentCommandIndex];
             }
         }
-
+        
         public string GetCurrentOutputLog()
         {
-            return mw.OutputBox.Text;
+            return mainWindow.OutputBox.Text;
         }
 
         public void setOutputLog(string log)
         {
-            mw.OutputBox.Text = log;
-            mw.OutputBox.ScrollToEnd();
+            mainWindow.OutputBox.Text = log;
+            mainWindow.OutputBox.ScrollToEnd();
         }
 
         public void UpdateDirectory(string path)
@@ -221,7 +208,7 @@ namespace NexTerm
             if (Directory.Exists(path))
             {
                 currentDir = path;
-                mw.PathBlock.Text = currentDir;
+                mainWindow.PathBlock.Text = currentDir;
             }
         }
     }

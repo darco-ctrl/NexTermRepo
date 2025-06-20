@@ -94,7 +94,7 @@ namespace NexTerm
 
                     if (TabManager.nexTermTabs.TryGetValue(tabToClose, out var tabData))
                     {
-                        tabData.ps.Dispose();
+                        tabData.Dispose();
                         TabManager.nexTermTabs.Remove(tabToClose);
                     }
 

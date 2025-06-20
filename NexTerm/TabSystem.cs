@@ -3,14 +3,18 @@
 // Description: TabManager
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Management.Automation;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Media;
 
@@ -18,77 +22,139 @@ namespace NexTerm
 {
     public class TabSystem
     {
-        private MainWindow mw;
+        private MainWindow _mainWindow;
 
         public class TabData
         {
-            public string outputlog { get; set; } =
+            public string OutputLog { get; set; } =
                 """
-                   ╔══════════════════════════════════════════════╗
-                   ║                                              ║
-                   ║               NexTerm v1.1.0                 ║
-                   ║         Shell Engine: PowerShell             ║
-                   ║                                              ║
-                   ╚══════════════════════════════════════════════╝
-                """;
-            public string TabPath { get; set; } = $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}";
-            public List<string> TabCommandHistory { get; set; } = new();
 
+                  ╔══════════════════════════════════════════════╗
+                  ║                                              ║
+                  ║               NexTerm v1.1.0                 ║
+                  ║         Shell Engine: PowerShell             ║
+                  ║                                              ║
+                  ╚══════════════════════════════════════════════╝
+
+                """;
+
+            public string TabPath { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            public List<string> TabCommandHistory { get; set; } = new();
             public string CurrentCommand { get; set; } = "";
 
-            public PowerShell ps { get; private set; } = PowerShell.Create();
+            private Process? _process;
+            public StreamWriter? _stdin { get; private set; }
+            private ConcurrentQueue<string>? _outputQueue = new();
+            private Timer? _flushTimer;
+            private Action<string>? _onOutput;
+            private Action<string>? _updatePath;
 
-            public PSDataCollection<PSObject> OutputCollection { get; private set; } = new PSDataCollection<PSObject>();
-
-            private bool _HandlersAttached = false;
-
-            public TabData() 
+            public TabData(Action<string> pushToOutput, Action<string> updatePath)
             {
-                ps = PowerShell.Create();
-                ps.AddCommand("Set-Location").AddArgument(TabPath);
-                ps.Invoke();
-                ps.Commands.Clear();
+                StartShell(pushToOutput, updatePath);
             }
 
-            public void InitiateHandlers(Action<string> pushToOutput, Action<string> updatePath)
+            public void StartShell(Action<string> pushToOutput, Action<string> updatePath)
             {
-                if (_HandlersAttached) return;
 
-                OutputCollection.DataAdded += (sender, e) =>
+                _onOutput = pushToOutput;
+                _updatePath = updatePath;
+
+                var psi = new ProcessStartInfo
                 {
+                    FileName = "powershell.exe",
+                    Arguments = "-NoLogo -NoProfile -NoExit -Command \"$Function:prompt = {''}\"",
+                    RedirectStandardInput = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WorkingDirectory = TabPath
+                };
 
-                    string text = OutputCollection[e.Index]?.BaseObject?.ToString()?.Trim() ?? "";
+                _process = new Process { StartInfo = psi, EnableRaisingEvents = true };
+                _process.OutputDataReceived += (s, e) =>
+                {
+                    if (!string.IsNullOrWhiteSpace(e.Data))
+                        EnqueueOutput(e.Data);
+                };
+                _process.ErrorDataReceived += (s, e) => EnqueueOutput($"{e.Data}");
 
-                    if (!string.IsNullOrWhiteSpace(text))
+                _process.Exited += (s, e) =>
+                {
+                    _outputQueue?.Enqueue("[process exited]");
+                };
+
+                _process.Start();
+                _stdin = _process.StandardInput;
+
+
+                _process.BeginOutputReadLine();
+                _process.BeginErrorReadLine();
+
+                _flushTimer = new Timer(_ => FlushOutput(), null, 0, 30); // 30ms per frame flush
+            }
+
+            private void EnqueueOutput(string line)
+            {
+                if (_outputQueue == null) return;
+
+                if (string.IsNullOrWhiteSpace(line)) return;
+
+                // Try detecting directory changes (optional improvement)
+                if (Directory.Exists(line.Trim()))
+                {
+                    _updatePath?.Invoke(line.Trim());
+                    return;
+                }
+
+                _outputQueue.Enqueue(line);
+            }
+
+            private void FlushOutput()
+            {
+                if (_outputQueue == null) return;
+
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    while (_outputQueue.TryDequeue(out string? line))
                     {
-                        Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            if (Directory.Exists(text))
-                            {
-                                updatePath(text);
-
-                                if (!CurrentCommand.Contains("Get-Location") && !CurrentCommand.Contains("cd"))
-                                    text = "";
-                            }
-
-                            if (!string.IsNullOrWhiteSpace(text))
-                                pushToOutput($" {text}");
-                        });
+                        _onOutput?.Invoke(line + "\n");
                     }
-                };
+                });
+            }
 
-                ps.Streams.Error.DataAdded += (sender, e) =>
+            public void SendInput(string command)
+            {
+                if (_process == null) return;
+                if (_stdin == null || _process.HasExited) return;
+
+                CurrentCommand = command;
+                TabCommandHistory.Add(command);
+
+                _stdin.WriteLine(command);
+                _stdin.Flush();
+            }
+
+            public void Dispose()
+            {
+                if (_process == null || _stdin == null) return;
+                try
                 {
-                    var errors = ps.Streams.Error;
-                    var error = errors[e.Index];
-
-                    Application.Current.Dispatcher.Invoke(() =>
+                    if (!_process.HasExited)
                     {
-                        pushToOutput($"\n[PowerShell Error] {error.Exception.Message}");
-                    });
-                };
+                        _stdin.WriteLine("exit");
+                        _stdin.Flush();
+                        _process.WaitForExit(1000); // wait 1s max
+                        if (!_process.HasExited)
+                            _process.Kill(); // fallback
+                    }
+                }
+                catch { }
 
-                _HandlersAttached = true;
+                _stdin?.Dispose();
+                _process?.Dispose();
+                _flushTimer?.Dispose();
             }
         }
 
@@ -96,7 +162,7 @@ namespace NexTerm
 
         public TabSystem(MainWindow mainwindow) 
         {
-            mw = mainwindow;
+            _mainWindow = mainwindow;
             OnTabReady();
         }
         private void OnTabReady()
@@ -108,72 +174,67 @@ namespace NexTerm
         {
             try
             {
-                TabItem newTab = new TabItem();
-                newTab.Name = $"NexTermTab{nexTermTabs.Count + 1}";
 
-                StackPanel tabheader = new StackPanel
+                TabItem newTab = new TabItem();
+                TextBox TabTextBox = CreateTabTextBox();
+                Button TabClosebutton = CreateTabCloseButton(newTab);
+
+                Binding isSelectedBinding;
+                StackPanel tabheader;
+                int tabindex = _mainWindow.TabBlock.Items.Count + 1;
+
+                tabheader = new StackPanel
                 {
                     Orientation = Orientation.Horizontal,
                     Margin = new Thickness(0)
                 };
-
-                TextBox TabTextBox = new TextBox
-                {
-                    Text = $"NexTerm{nexTermTabs.Count + 1}",
-                    Style = (Style)mw.FindResource("TabTextBox"),
-                    IsEnabled = false,
-                    Tag = "TagId",
-                };
-                ContentControl textcontainer = new ContentControl();
-                textcontainer.Content = TabTextBox;
-
-                Button TabClosebutton = new Button
-                {
-                    Name = $"Button{nexTermTabs.Count + 1}",
-                    Style = (Style)mw.FindResource("TabButton"),
-                    IsEnabled = false,
-                    Tag = newTab
-                };
-                TabClosebutton.Click += mw.OnTabCloseButtonClick;
-
-                tabheader.Children.Add(textcontainer);
+                tabheader.Children.Add(new ContentControl { Content = TabTextBox} );
                 tabheader.Children.Add(TabClosebutton);
-
                 newTab.Header = tabheader;
 
-                //mw.RegisterName(newTab.Name, newTab);
-
-                Binding isSelectedBinding = new Binding("IsSelected")
-                {
-                    Source = newTab
-                };
+                isSelectedBinding = new Binding("IsSelected") { Source = newTab };
                 TabTextBox.SetBinding(TextBox.IsEnabledProperty, isSelectedBinding);
                 TabClosebutton.SetBinding(Button.IsEnabledProperty, isSelectedBinding);
 
-                mw.TabBlock.Items.Add(newTab);
+                _mainWindow.TabBlock.Items.Add(newTab);
+                nexTermTabs.Add(newTab, new TabData(_mainWindow.Terminal.PushToOutput, _mainWindow.Terminal.UpdateDirectory));
 
-                TabData newTabData = new TabData();
-
-                nexTermTabs.Add(newTab, newTabData);
-                PSActivator(nexTermTabs[newTab]);
-
-                mw.TabBlock.SelectedItem = newTab;
-
+                _mainWindow.TabBlock.SelectedItem = newTab;
                 SelectNewTab(newTab);
+
             } catch (Exception ex)
             {
-                mw.Terminal.ShowError($"{ex}");
+                _mainWindow.Terminal.ShowError($"{ex}");
             }
         }
 
-        private void PSActivator(TabData session)
+        private TextBox CreateTabTextBox()
         {
-            session.InitiateHandlers(mw.Terminal.PushToOutput, mw.Terminal.UpdateDirectory);
+            return new TextBox
+            {
+                Text = $"NexTerm",
+                Style = (Style)_mainWindow.FindResource("TabTextBox"),
+                IsEnabled = false,
+                Tag = "TagId",
+            };
         }
+        
+        private Button CreateTabCloseButton(TabItem tab)
+        {
+            var button =  new Button
+            {
+                Style = (Style)_mainWindow.FindResource("TabButton"),
+                IsEnabled = false,
+                Tag = tab
+            };
+            button.Click += _mainWindow.OnTabCloseButtonClick;
+            return button;
+        }
+
 
         public void SelectNewTab(TabItem tab)
         {
-            if (mw.Terminal.current_tab == tab) return;
+            if (_mainWindow.Terminal.current_tab == tab) return;
 
             if (!nexTermTabs.TryGetValue(tab, out TabData? newData))
             {
@@ -181,21 +242,21 @@ namespace NexTerm
                 return;
             }
 
-            if (mw.Terminal.current_tab != null &&
-            nexTermTabs.TryGetValue(mw.Terminal.current_tab, out TabData? currentData))
+            if (_mainWindow.Terminal.current_tab != null &&
+            nexTermTabs.TryGetValue(_mainWindow.Terminal.current_tab, out TabData? currentData))
             {
-                currentData.TabPath = mw.Terminal.currentDir;
-                currentData.outputlog = mw.Terminal.GetCurrentOutputLog();
-                currentData.TabCommandHistory = mw.commandManager.CommandHistory;
+                currentData.TabPath = _mainWindow.Terminal.currentDir;
+                currentData.OutputLog = _mainWindow.Terminal.GetCurrentOutputLog();
+                currentData.TabCommandHistory = _mainWindow.commandManager.CommandHistory;
             }
 
             // Load new tab data
-            mw.Terminal._ps = newData.ps;
-            mw.Terminal.OutputCollection = newData.OutputCollection;
-            mw.Terminal.current_tab = tab;
-            mw.Terminal.UpdateDirectory(newData.TabPath);
-            mw.Terminal.setOutputLog(newData.outputlog);
-            mw.commandManager.CommandHistory = newData.TabCommandHistory;
+
+            _mainWindow.Terminal.current_tab = tab;
+            _mainWindow.Terminal._streamWriter = newData._stdin;
+            _mainWindow.Terminal.UpdateDirectory(newData.TabPath);
+            _mainWindow.Terminal.setOutputLog(newData.OutputLog);
+            _mainWindow.commandManager.CommandHistory = newData.TabCommandHistory;
         }
     }
 }
