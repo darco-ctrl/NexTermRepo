@@ -94,12 +94,11 @@ namespace NexTerm
 
         private void NTShowHelp(string[] args)
         {
-            mainWindow.OutputBox.AppendText("\n\n");
+            mainWindow.Terminal.PushToOutput("\n\n");
             foreach (var entry in Commands)
             {
-                mainWindow.OutputBox.AppendText($"-- {entry.Key.PadRight(12)} - {entry.Value.Description}\n");
+                mainWindow.Terminal.PushToOutput($"-- {entry.Key.PadRight(12)} - {entry.Value.Description}\n");
             }
-            mainWindow.OutputBox.ScrollToEnd();
         }
 
         private void NTHistory(string[] args)

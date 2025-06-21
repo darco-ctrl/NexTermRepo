@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -29,7 +30,6 @@ namespace NexTerm
 
         // Tab info
         public TabItem? current_tab;
-        public StreamWriter? _streamWriter;
 
         private bool TerminalStarted = false;
         private bool IsCommandRunning = false;
@@ -41,6 +41,10 @@ namespace NexTerm
         private int currentCommandIndex = 0;
         private int maxPreviousCommands = 10;
 
+        public Action<string>? _sendInput;
+
+        private string _lineBuffer = "";
+
         public TerminalEngine(MainWindow mainWindow)
         {
             this.mainWindow = mainWindow;
@@ -50,15 +54,14 @@ namespace NexTerm
         {
             if (TerminalStarted) return;
             TerminalStarted = true;
+
         }
 
         private void ExecutePowerShellCommand(string command)
         {
-            if (_streamWriter == null) { return; }
             try
             {
-                _streamWriter.WriteLine(command);
-                _streamWriter.Flush();
+                _sendInput?.Invoke(command);
             }
             catch (Exception ex)
             {
@@ -88,16 +91,6 @@ namespace NexTerm
 
             if (!string.IsNullOrWhiteSpace(command))
             {
-                if (command.TrimStart().StartsWith("cd", StringComparison.OrdinalIgnoreCase))
-                {
-                    ShowError("Please use Get-Location or Set-Location instead of 'cd'");
-                    return;
-                }
-
-                if (command.ToLower().Contains("@raw"))
-                {
-                    command = command.Substring(4).Trim();
-                }
 
                 AddToPreviousCommand(command);
                 if (command.StartsWith("@"))
@@ -142,9 +135,48 @@ namespace NexTerm
 
         public void PushToOutput(string text)
         {
-            mainWindow.OutputBox.AppendText(text);
-            mainWindow.OutputBox.ScrollToEnd();
+            try
+            {
+                // Step 1: Strip ANSI and OSC sequences
+                string cleaned = Regex.Replace(text, @"\x1B\[[0-9;?]*[A-Za-z]", "");
+                cleaned = Regex.Replace(cleaned, @"\x1B\].*?\x07", "");
+
+                _lineBuffer += cleaned;
+                string trimmed = _lineBuffer.Trim();
+
+                // Step 2: Detect prompt and hide it
+                if (Regex.IsMatch(trimmed, @"^[A-Z]:\\.*>$"))
+                {
+                    UpdateDirectory(trimmed.TrimEnd('>'));
+                    _lineBuffer = "";
+                    return;
+                }
+
+             
+                if ((cleaned.EndsWith("\n") || cleaned.EndsWith("\r")) &&
+                    !string.IsNullOrWhiteSpace(trimmed) && _lineBuffer.Trim() != "")
+                {
+                    if (trimmed == current_command)
+                    {
+                        _lineBuffer = $"\n> {trimmed}\n";
+                    }
+                    else
+                    {
+                        _lineBuffer = _lineBuffer.TrimEnd('\r', '\n');
+                    }
+
+                    mainWindow.OutputBox.AppendText(_lineBuffer);
+                    mainWindow.OutputBox.ScrollToEnd();
+                    _lineBuffer = "";
+                }
+            }
+            catch (Exception ex)
+            {
+                File.AppendAllText("crashlog.txt", $"PushToOutput crash: {ex}\ntext={text}\n");
+            }
         }
+
+
 
         public void SetOutput(string text)
         {
