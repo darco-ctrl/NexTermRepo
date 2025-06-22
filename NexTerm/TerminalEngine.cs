@@ -8,6 +8,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Management.Automation;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -19,6 +20,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using SNMM = System.Net.Mime.MediaTypeNames;
 using WSPath = System.Windows.Shapes.Path;
 
 namespace NexTerm
@@ -26,6 +28,28 @@ namespace NexTerm
     public class TerminalEngine
     {
         private MainWindow mainWindow;
+
+        private readonly Dictionary<int, Brush> ForegroundColors = new()
+    {
+        { 30, Brushes.Black },
+        { 31, Brushes.Red },
+        { 32, Brushes.Green },
+        { 33, Brushes.Yellow },
+        { 34, Brushes.Blue },
+        { 35, Brushes.Magenta },
+        { 36, Brushes.Cyan },
+        { 37, Brushes.White },
+
+        // Bright variants (90–97)
+        { 90, Brushes.DarkGray },
+        { 91, Brushes.OrangeRed },
+        { 92, Brushes.LightGreen },
+        { 93, Brushes.LightYellow },
+        { 94, Brushes.LightBlue },
+        { 95, Brushes.Plum },
+        { 96, Brushes.LightCyan },
+        { 97, Brushes.White }
+    };
 
 
         // Tab info
@@ -43,8 +67,6 @@ namespace NexTerm
 
         public Action<string>? _sendInput;
 
-        private string _lineBuffer = "";
-
         public TerminalEngine(MainWindow mainWindow)
         {
             this.mainWindow = mainWindow;
@@ -54,7 +76,7 @@ namespace NexTerm
         {
             if (TerminalStarted) return;
             TerminalStarted = true;
-
+            PushToOutput("\x1B[31mHello\x1B[0m World");
         }
 
         private void ExecutePowerShellCommand(string command)
@@ -137,38 +159,36 @@ namespace NexTerm
         {
             try
             {
-                // Step 1: Strip ANSI and OSC sequences
-                string cleaned = Regex.Replace(text, @"\x1B\[[0-9;?]*[A-Za-z]", "");
-                cleaned = Regex.Replace(cleaned, @"\x1B\].*?\x07", "");
+                // First clean escape sequences that aren't color-related
+                string cleaned = Regex.Replace(text, @"\x1B\].*?\x07", "");
 
-                _lineBuffer += cleaned;
-                string trimmed = _lineBuffer.Trim();
+                string[] lines = cleaned.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
 
-                // Step 2: Detect prompt and hide it
-                if (Regex.IsMatch(trimmed, @"^[A-Z]:\\.*>$"))
+                Application.Current.Dispatcher.Invoke(() =>
                 {
-                    UpdateDirectory(trimmed.TrimEnd('>'));
-                    _lineBuffer = "";
-                    return;
-                }
-
-             
-                if ((cleaned.EndsWith("\n") || cleaned.EndsWith("\r")) &&
-                    !string.IsNullOrWhiteSpace(trimmed) && _lineBuffer.Trim() != "")
-                {
-                    if (trimmed == current_command)
+                    foreach (string rawLine in lines)
                     {
-                        _lineBuffer = $"\n> {trimmed}\n";
-                    }
-                    else
-                    {
-                        _lineBuffer = _lineBuffer.TrimEnd('\r', '\n');
-                    }
+                        string line = rawLine.TrimEnd('\r', '\n');
 
-                    mainWindow.OutputBox.AppendText(_lineBuffer);
-                    mainWindow.OutputBox.ScrollToEnd();
-                    _lineBuffer = "";
-                }
+                        if (string.IsNullOrWhiteSpace(line))
+                            continue;
+
+                        if (Regex.IsMatch(line.Trim(), @"^[A-Z]:\\.*>$"))
+                        {
+                            UpdateDirectory(line.TrimEnd('>'));
+                            continue;
+                        }
+
+                        // 👇 Just convert this line into paragraph (with color)
+                        Paragraph paragraph = AsciiToColor(line);
+
+                        if (paragraph.Inlines.Count > 0)
+                        {
+                            mainWindow.OutputBox.Document.Blocks.Add(paragraph);
+                            mainWindow.OutputBox.ScrollToEnd();
+                        }
+                    }
+                });
             }
             catch (Exception ex)
             {
@@ -177,10 +197,72 @@ namespace NexTerm
         }
 
 
+        private Paragraph AsciiToColor(string line)
+        {
+            Paragraph paragraph = new Paragraph
+            {
+                Margin = new Thickness(0)
+            };
+
+            bool foundAnsi = false;
+
+            foreach (string word in line.Split(' '))
+            {
+                if (word.Contains('\x1B'))
+                {
+                    int start = word.IndexOf("\x1B[");
+                    int end = word.IndexOf('m', start);
+                    if (start >= 0 && end > start)
+                    {
+                        foundAnsi = true;
+
+                        string ansiCode = word.Substring(start, end - start + 1);
+                        string cleaned = word.Substring(end + 1);
+                        string code = ansiCode.TrimStart('\x1B').TrimStart('[').TrimEnd('m');
+
+                        if (int.TryParse(code, out int result) && ForegroundColors.TryGetValue(result, out Brush? brush))
+                        {
+                            string fallbackCleaned = Regex.Replace(cleaned, @"\x1B\[[0-9;?]*[A-Za-z]", "");
+                            Run run = new Run(fallbackCleaned + " ") // keep spacing
+                            {
+                                Foreground = brush
+                            };
+                            paragraph.Inlines.Add(run);
+                        }
+                        else
+                        {
+                            Run fallbackRun = new Run(cleaned + " ");
+                            paragraph.Inlines.Add(fallbackRun);
+                        }
+                    }
+                }
+                else
+                {
+                    string fallbackCleaned = Regex.Replace(line, @"\x1B\[[0-9;?]*[A-Za-z]", "");
+                    Run run = new Run(fallbackCleaned + " ");
+                    paragraph.Inlines.Add(run);
+                }
+            }
+
+            if (!foundAnsi && paragraph.Inlines.Count == 0)
+            {
+                Run run = new Run(line)
+                {
+                    Foreground = Brushes.White 
+                };
+                paragraph.Inlines.Add(run);
+            }
+
+            return paragraph;
+        }
 
         public void SetOutput(string text)
         {
-            mainWindow.OutputBox.Text = text;
+            mainWindow.OutputBox.Document.Blocks.Clear();
+            Paragraph para = new Paragraph();
+            Run run = new Run(text);
+            para.Inlines.Add(run);
+            mainWindow.OutputBox.Document.Blocks.Add(para);
             mainWindow.OutputBox.ScrollToEnd();
         }
 
@@ -226,13 +308,10 @@ namespace NexTerm
         
         public string GetCurrentOutputLog()
         {
-            return mainWindow.OutputBox.Text;
-        }
-
-        public void setOutputLog(string log)
-        {
-            mainWindow.OutputBox.Text = log;
-            mainWindow.OutputBox.ScrollToEnd();
+            string fulltext = new TextRange(
+                mainWindow.OutputBox.Document.ContentStart,
+                mainWindow.OutputBox.Document.ContentEnd).Text;
+            return fulltext;
         }
 
         public void UpdateDirectory(string path)

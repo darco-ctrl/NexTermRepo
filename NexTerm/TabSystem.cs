@@ -424,13 +424,15 @@ namespace NexTerm
                 currentData.TabPath = _mainWindow.Terminal.currentDir;
                 currentData.OutputLog = _mainWindow.Terminal.GetCurrentOutputLog();
                 currentData.TabCommandHistory = _mainWindow.commandManager.CommandHistory;
+
+                _mainWindow.Terminal.SetOutput(_mainWindow._startupbanner);
             }
 
             // Load new tab data
             _mainWindow.Terminal.current_tab = tab;
             _mainWindow.Terminal._sendInput = newData.InputHandler;
             _mainWindow.Terminal.UpdateDirectory(newData.TabPath);
-            _mainWindow.Terminal.setOutputLog(newData.OutputLog);
+            _mainWindow.Terminal.SetOutput(newData.OutputLog);
             _mainWindow.commandManager.CommandHistory = newData.TabCommandHistory;
         }
     }

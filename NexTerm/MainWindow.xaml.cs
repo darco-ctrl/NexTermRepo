@@ -21,9 +21,16 @@ namespace NexTerm
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
+    /// 
 
     public partial class MainWindow : Window
     {
+
+        [DllImport("kernel32.dll")]
+        private static extern bool AllocConsole();
+
+        [DllImport("kernel32.dll")]
+        private static extern bool FreeConsole();
 
         public TerminalEngine Terminal;
         public TabSystem TabManager;
@@ -32,8 +39,23 @@ namespace NexTerm
         private bool isMaximized = false;
 
 
+        public string _startupbanner =
+            """
+
+        ███╗   ██╗███████╗██╗  ██╗████████╗███████╗██████╗ ███╗   ███╗
+        ████╗  ██║██╔════╝╚██╗██╔╝╚══██╔══╝██╔════╝██╔══██╗████╗ ████║
+        ██╔██╗ ██║█████╗   ╚███╔╝    ██║   █████╗  ██████╔╝██╔████╔██║
+        ██║╚██╗██║██╔══╝   ██╔██╗    ██║   ██╔══╝  ██╔══██╗██║╚██╔╝██║
+        ██║ ╚████║███████╗██╔╝ ██╗   ██║   ███████╗██║  ██║██║ ╚═╝ ██║
+        ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝   ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝
+                                                                      
+
+        """;
+
         public MainWindow()
         {
+            AllocConsole();
+
             InitializeComponent();
 
             this.Terminal = new TerminalEngine(this);
@@ -41,6 +63,8 @@ namespace NexTerm
             this.TabManager = new TabSystem(this);
 
             Terminal.OnTerminalReady();
+
+            Console.WriteLine("\x1b[31mThis is red text\x1b[0m");
         }
 
         private void InputBox_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -55,9 +79,13 @@ namespace NexTerm
 
         private void Minimize_Click(object sender, RoutedEventArgs e) => this.WindowState = WindowState.Minimized;
 
-
+        public void Print(string message)
+        {
+            Console.WriteLine(message);
+        }
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
+            FreeConsole();
             Terminal.CloseNexTerm();
             this.Close();
         }
